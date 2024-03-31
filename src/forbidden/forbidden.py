@@ -1713,7 +1713,7 @@ class Validate:
 			elif entry in ["base", "path"]:
 				tmp.append(entry)
 			elif not entry.isdigit() or int(entry) < 0:
-				self.__error("Content lengths must be either 'base', 'path', or numeric equal or greater than zero")
+				self.__error("Content lengths must be either 'base', 'path', or numeric greater than or equal to zero")
 				break
 			else:
 				tmp.append(int(entry))
