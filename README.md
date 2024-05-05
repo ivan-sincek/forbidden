@@ -49,7 +49,7 @@ Made for educational purposes. I hope it will help!
 
 **Remarks:**
 
-* Python Requests seems to be up to 3x faster than PycURL, but PycURL more customizable,
+* Python Requests seems to be up to 3x faster than PycURL, but PycURL is more customizable,
 * beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
 * connection and read timeout is set to `60` seconds,
 * `length` attribute in results includes only HTTP response body length,
