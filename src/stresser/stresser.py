@@ -155,7 +155,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/10.8"
+default_user_agent = "Stresser/10.9"
 
 def get_all_user_agents():
 	tmp = []
@@ -731,7 +731,7 @@ class Progress:
 class MyArgParser(argparse.ArgumentParser):
 	
 	def print_help(self):
-		print("Stresser v10.8 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v10.9 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -941,7 +941,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v10.8                             #")
+		print("#                             Stresser v10.9                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
