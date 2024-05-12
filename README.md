@@ -581,4 +581,4 @@ DEBUG
 
 <p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example_table.png" alt="Basic Example"></p>
 
-<p align="center">Figure 2 - Basic Example (Table)</p>
+<p align="center">Figure 2 - Basic Example (Table Output)</p>
