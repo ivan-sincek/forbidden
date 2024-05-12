@@ -34,6 +34,35 @@ def set_param(value, param = ""):
 
 # ----------------------------------------
 
+def get_header_key_value(header):
+	key = ""; value = ""
+	if re.search(r"^.+\:.+$", header):
+		key, value = header.split(":", 1)
+	elif re.search(r"^[^\;]+\;$", header):
+		key, value = header.split(";", 1)
+	return key.strip(), value.strip()
+
+def format_header_key_value(key, value):
+	return ("{0}: {1}").format(key, value) if value else ("{0};").format(key)
+
+def get_cookie_key_value(cookie):
+	key = ""; value = ""
+	if re.search(r"^[^\=\;]+\=[^\=\;]+$|^[^\=\;]+\=$", cookie):
+		key, value = cookie.split("=", 1)
+	return key.strip(), value.strip()
+
+def format_cookie_key_value(key, value):
+	return ("{0}={1}").format(key, value)
+
+def cookies_to_dict(cookies):
+	tmp = {}
+	for cookie in cookies:
+		key, value = cookie.split("=")
+		tmp[key] = value
+	return tmp
+
+# ----------------------------------------
+
 def strip_url_scheme(url):
 	return url.split("://", 1)[-1]
 
@@ -288,7 +317,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/10.9"
+default_user_agent = "Forbidden/11.0"
 
 def get_all_user_agents():
 	tmp = []
@@ -307,9 +336,12 @@ def get_random_user_agent():
 
 # ----------------------------------------
 
+ERROR   =  0
+IGNORED = -1
+
 class Forbidden:
 
-	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, paths, evil, ignore, content_lengths, request_timeout, threads, sleep, user_agents, proxy, debug):
+	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, paths, evil, headers, cookies, ignore, content_lengths, request_timeout, threads, sleep, user_agents, proxy, show_table, debug):
 		# --------------------------------
 		# NOTE: User-controlled input.
 		self.__url             = self.__parse_url(url, ignore_qsf)
@@ -318,6 +350,8 @@ class Forbidden:
 		self.__values          = values
 		self.__accessible      = append_paths(self.__url["scheme_domain"], paths)
 		self.__evil            = self.__parse_url(evil, ignore_qsf)
+		self.__headers         = headers
+		self.__cookies         = cookies
 		self.__ignore          = ignore
 		self.__content_lengths = content_lengths
 		self.__threads         = threads
@@ -325,6 +359,7 @@ class Forbidden:
 		self.__user_agents     = user_agents
 		self.__user_agents_len = len(self.__user_agents)
 		self.__proxy           = proxy
+		self.__show_table      = show_table
 		self.__debug           = debug
 		# --------------------------------
 		# NOTE: Python cURL configuration.
@@ -493,7 +528,7 @@ class Forbidden:
 				self.__print_error("Cannot fetch the IP of evil URL, script will exit shortly...")
 		# --------------------------------
 
-	# NOTE: Select only the first valid accessible URL.
+	# NOTE: Proceed with the first valid accessible URL.
 	def __validate_accessible_urls(self):
 		if self.__check_tests(["headers", "all"]):
 			print_time(("Validating the accessible URLs using HTTP {0} method...").format(self.__default_method))
@@ -501,7 +536,7 @@ class Forbidden:
 				self.__accessible = ""
 				record = self.__fetch(url = url, method = self.__default_method)
 				if record["code"] >= 200 and record["code"] < 400:
-					print_green(("First valid accessible URL: {0}").format(record["url"]))
+					print_green(("Valid accessible URL found: {0}").format(record["url"]))
 					self.__accessible = record["url"]
 					if "path" in self.__content_lengths:
 						print_green(("Ignoring the accessible URL response content length: {0}").format(record["length"]))
@@ -544,11 +579,11 @@ class Forbidden:
 				print_green(("Allowed HTTP methods: [{0}]").format((", ").join(self.__allowed_methods)))
 		# --------------------------------
 
-	def __fetch(self, url, method = None, headers = None, body = None, user_agent = None, proxy = None, curl = None, passthrough = True):
-		record = self.__record("SYSTEM-0", url, method, headers, body, user_agent, proxy, curl)
+	def __fetch(self, url, method = None, headers = None, cookies = None, body = None, user_agent = None, proxy = None, curl = None, passthrough = True):
+		record = self.__record("SYSTEM-0", url, method, headers, cookies, body, user_agent, proxy, curl)
 		return self.__send_curl(record, passthrough) if record["curl"] else self.__send_request(record, passthrough)
 
-	def __records(self, identifier, urls, methods = None, headers = None, body = None, user_agent = None, proxy = None, curl = None):
+	def __records(self, identifier, urls, methods = None, headers = None, cookies = None, body = None, user_agent = None, proxy = None, curl = None):
 		if not isinstance(urls, list):
 			urls = [urls]
 		if not isinstance(methods, list):
@@ -560,22 +595,24 @@ class Forbidden:
 						if not isinstance(header, list):
 							# NOTE: Python cURL accepts only string arrays as HTTP request headers.
 							header = [header]
-						self.__collection.append(self.__record(identifier, url, method, header, body, user_agent, proxy, curl))
+						self.__collection.append(self.__record(identifier, url, method, header, cookies, body, user_agent, proxy, curl))
 		else:
 			for url in urls:
 				for method in methods:
-					self.__collection.append(self.__record(identifier, url, method, [], body, user_agent, proxy, curl))
+					self.__collection.append(self.__record(identifier, url, method, [], cookies, body, user_agent, proxy, curl))
 
-	def __record(self, identifier, url, method, headers, body, user_agent, proxy, curl):
+	def __record(self, identifier, url, method, headers, cookies, body, user_agent, proxy, curl):
 		self.__identifier += 1
 		identifier = ("{0}-{1}").format(self.__identifier, identifier)
 		if not method:
 			method = self.__force if self.__force else self.__default_method
+		headers = self.__inspect_headers(headers)
+		cookies = self.__inspect_cookies(cookies)
 		if not user_agent:
 			user_agent = self.__user_agents[random.randint(0, self.__user_agents_len - 1)] if self.__user_agents_len > 1 else self.__user_agents[0]
 		if not proxy:
 			proxy = self.__proxy
-		if not curl:
+		if not curl and curl is not False:
 			curl = self.__curl
 		record = {
 			"raw"             : self.__identifier,
@@ -583,11 +620,12 @@ class Forbidden:
 			"url"             : url,
 			"method"          : method,
 			"headers"         : headers,
+			"cookies"         : cookies,
 			"body"            : body,
 			"user_agent"      : user_agent,
 			"proxy"           : proxy,
 			"command"         : None,
-			"code"            : 0,
+			"code"            : ERROR,
 			"length"          : 0,
 			"response"        : None,
 			"response_headers": None,
@@ -595,6 +633,36 @@ class Forbidden:
 		}
 		record["command"] = self.__build_command(record)
 		return record
+
+	def __inspect_headers(self, headers = None):
+		tmp = []
+		exists = set()
+		if headers:
+			for header in headers:
+				key, value = get_header_key_value(header)
+				if key:
+					exists.add(key.lower())
+					tmp.append(format_header_key_value(key, value))
+		for header in self.__headers:
+			key, value = get_header_key_value(header)
+			if key and key.lower() not in exists: # NOTE: Extra headers cannot override test headers.
+				tmp.append(format_header_key_value(key, value))
+		return tmp
+
+	def __inspect_cookies(self, cookies = None):
+		tmp = []
+		exists = set()
+		if cookies:
+			for cookie in cookies:
+				key, value = get_cookie_key_value(cookie)
+				if key:
+					exists.add(key.lower())
+					tmp.append(format_cookie_key_value(key, value))
+		for cookie in self.__cookies:
+			key, value = get_cookie_key_value(cookie)
+			if key and key.lower() not in exists: # NOTE: Extra cookies cannot override test cookies.
+				tmp.append(format_cookie_key_value(key, value))
+		return tmp
 
 	def __build_command(self, record):
 		tmp = ["curl", ("--connect-timeout {0}").format(self.__connect_timeout), ("-m {0}").format(self.__read_timeout), "-iskL", ("--max-redirs {0}").format(self.__max_redirects), "--path-as-is"]
@@ -684,6 +752,8 @@ class Forbidden:
 				curl.setopt(pycurl.USERAGENT, self.__encode(record["user_agent"]))
 			if record["headers"]:
 				curl.setopt(pycurl.HTTPHEADER, self.__encode(record["headers"])) # Will override 'User-Agent' HTTP request header.
+			if record["cookies"]:
+				curl.setopt(pycurl.COOKIE, ("; ").join(record["cookies"]))
 			if record["body"]:
 				curl.setopt(pycurl.POSTFIELDS, record["body"])
 			if record["proxy"]:
@@ -697,7 +767,7 @@ class Forbidden:
 				record["response_headers"] = self.__decode(headers.getvalue())
 				# record["response"] = self.__decode(response.getvalue())
 			elif record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, self.__decode(response.getvalue()), self.__regex_flags)):
-				record["code"] = -1
+				record["code"] = IGNORED
 			# ----------------------------
 		except pycurl.error as ex:
 			# ----------------------------
@@ -739,6 +809,8 @@ class Forbidden:
 				request.headers["User-Agent"] = self.__encode(record["user_agent"])
 			if record["headers"]:
 				self.__set_double_headers(request, record["headers"]) # Will override 'User-Agent' HTTP request header.
+			if record["cookies"]:
+				session.cookies.update(cookies_to_dict(record["cookies"]))
 			if record["body"]:
 				request.data = record["body"]
 			if record["proxy"]:
@@ -760,7 +832,7 @@ class Forbidden:
 				record["response_headers"] = dict(response.headers)
 				# record["response"] = self.__decode(response.content)
 			elif record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, self.__decode(response.content), self.__regex_flags)):
-				record["code"] = -1
+				record["code"] = IGNORED
 			# ----------------------------
 		except (requests.packages.urllib3.exceptions.LocationParseError, requests.exceptions.RequestException) as ex:
 			# ----------------------------
@@ -779,43 +851,14 @@ class Forbidden:
 	def __set_double_headers(self, request, headers):
 		exists = set()
 		for header in headers:
-			array = header.split(":", 1)
-			key = array[0].rstrip(";")
-			value = self.__encode(array[1].strip() if len(array) > 1 else "")
-			request.headers[key if key not in exists and not exists.add(key) else uniquestr(key)] = value
+			key, value = get_header_key_value(header)
+			request.headers[key if key not in exists and not exists.add(key) else uniquestr(key)] = self.__encode(value) # NOTE: Allows double headers.
 
 	def __validate_results(self):
-		tmp = []
-		# --------------------------------
 		print_time("Validating results...")
-		table = Table(self.__collection) # unfiltered
-		# --------------------------------
-		self.__collection = pop(sorted([record for record in self.__collection if record["code"] > 0], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response_headers", "response", "curl"])
-		# --------------------------------
-		for record in self.__collection:
-			if record["code"] >= 500:
-				continue
-				print_cyan(jdump(record))
-				tmp.append(record)
-			elif record["code"] >= 400:
-				continue
-				print_red(jdump(record))
-				tmp.append(record)
-			elif record["code"] >= 300:
-				# continue
-				print_yellow(jdump(record))
-				tmp.append(record)
-			elif record["code"] >= 200:
-				# continue
-				print_green(jdump(record))
-				tmp.append(record)
-			elif record["code"] > 0:
-				continue
-				print_white(jdump(record))
-				tmp.append(record)
-		# --------------------------------
-		self.__collection = tmp
-		table.show()
+		output = Output(self.__collection)
+		self.__collection = output.results_table() if self.__show_table else output.results_json()
+		output.stats_table()
 
 	def __check_tests(self, array):
 		return any(test in array for test in self.__tests)
@@ -961,7 +1004,13 @@ class Forbidden:
 			# NOTE: Test URL path bypasses.
 			self.__records(
 				identifier = "PATHS-1",
-				urls       = self.__get_path_bypass_urls()
+				urls       = self.__get_path_bypass_urls(sniper = False)
+			)
+		elif self.__check_tests(["paths-sniper"]):
+			# NOTE: Test URL path bypasses.
+			self.__records(
+				identifier = "PATHS-1",
+				urls       = self.__get_path_bypass_urls(sniper = True)
 			)
 		# --------------------------------
 		if self.__check_tests(["encodings", "all"]):
@@ -1310,19 +1359,21 @@ class Forbidden:
 					])
 		return tmp
 
-	def __get_path_bypass_urls(self):
+	def __get_path_bypass_urls(self, sniper = False):
 		path_bypasses = []
 		# --------------------------------
 		path = self.__url["path"].strip(path_const)
 		# --------------------------------
 		# NOTE: Inject at the beginning, end, and both, beginning and end of the URL path.
-		# NOTE: All possible combinations.
+		# NOTE: Use one payload set to test all positions simultaneously (sniper) or test using every possible combinations of payload set (cluster bomb - default).
 		injections = []
-		for i in ["", "%09", "%20", "%23", "%2e", "*", ".", "..", ";", ".;", "..;", ";foo=bar;"]:
+		for i in ["", "%09", "%20", "%23", "%2e", "%a0", "*", ".", "..", ";", ".;", "..;", "/;/", ";/../../", ";foo=bar;"]:
 			injections.extend([path_const + i + path_const, i + path_const, path_const + i, i])
-		for i in injections:
-			path_bypasses.extend([path + i, i + path])
-			if path:
+		if sniper:
+			for i in injections:
+				path_bypasses.extend([path + i, i + path, i + path + i])
+		else:
+			for i in injections:
 				for j in injections:
 					path_bypasses.extend([i + path + j])
 		# --------------------------------
@@ -1429,46 +1480,100 @@ class Forbidden:
 
 # ----------------------------------------
 
-class Table:
+class Output:
 
 	def __init__(self, collection):
-		self.__table = self.__init_table(collection)
+		self.__collection = pop(sorted([record for record in collection if record["code"] >= 100 and record["code"] < 600], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response_headers", "response", "curl"]) # filtered
+		self.__stats      = self.__count(collection) # unfiltered
 
-	def __init_table(self, collection):
-		table = {}
-		for record in collection:
-			if record["code"] not in table:
-				table[record["code"]] = 0
-			table[record["code"]] += 1
-		return dict(sorted(table.items()))
+	def __color(self, value, color):
+		return ("{0}{1}{2}").format(color, value, colorama.Style.RESET_ALL)
 
-	def __row(self, code, count, color):
-		return [
-			("{0}{1}{2}").format(color, code, colorama.Style.RESET_ALL),
-			("{0}{1}{2}").format(color, count, colorama.Style.RESET_ALL)
-		]
+	def __results_row(self, record, color):
+		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
 
-	def show(self):
+	def results_table(self):
 		tmp = []
-		for code, count in self.__table.items():
-			if code >= 500:
-				tmp.append(self.__row(code, count, colorama.Fore.CYAN))
+		results = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				continue
+				results.append(self.__results_row(record, colorama.Fore.CYAN))
+			elif record["code"] >= 400:
+				continue
+				results.append(self.__results_row(record, colorama.Fore.RED))
+			elif record["code"] >= 300:
+				# continue
+				results.append(self.__results_row(record, colorama.Fore.YELLOW))
+			elif record["code"] >= 200:
+				# continue
+				results.append(self.__results_row(record, colorama.Fore.GREEN))
+			elif record["code"] >= 100:
+				continue
+				results.append(self.__results_row(record, colorama.Fore.WHITE))
+			tmp.append(record)
+		if results:
+			print(tabulate.tabulate(results, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
+		return tmp
+
+	def results_json(self):
+		tmp = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				continue
+				print_cyan(jdump(record))
+			elif record["code"] >= 400:
+				continue
+				print_red(jdump(record))
+			elif record["code"] >= 300:
+				# continue
+				print_yellow(jdump(record))
+			elif record["code"] >= 200:
+				# continue
+				print_green(jdump(record))
+			elif record["code"] >= 100:
+				continue
+				print_white(jdump(record))
+			tmp.append(record)
+		return tmp
+
+	def __count(self, collection):
+		tmp = {}
+		for record in collection:
+			if record["code"] not in tmp:
+				tmp[record["code"]] = 0
+			tmp[record["code"]] += 1
+		return dict(sorted(tmp.items()))
+
+	def __stats_row(self, code, count, color):
+		return [self.__color(entry, color) for entry in [code, count]]
+
+	def stats_table(self):
+		stats = []
+		special = []
+		for code, count in self.__stats.items():
+			if code == ERROR:
+				special.append(self.__stats_row("Errors", count, colorama.Fore.WHITE))
+			elif code == IGNORED:
+				special.append(self.__stats_row("Ignored", count, colorama.Fore.WHITE))
+			elif code < 100 or code >= 600:
+				continue
+			elif code >= 500:
+				stats.append(self.__stats_row(code, count, colorama.Fore.CYAN))
 			elif code >= 400:
-				tmp.append(self.__row(code, count, colorama.Fore.RED))
+				stats.append(self.__stats_row(code, count, colorama.Fore.RED))
 			elif code >= 300:
-				tmp.append(self.__row(code, count, colorama.Fore.YELLOW))
+				stats.append(self.__stats_row(code, count, colorama.Fore.YELLOW))
 			elif code >= 200:
-				tmp.append(self.__row(code, count, colorama.Fore.GREEN))
-			elif code > 0:
-				tmp.append(self.__row(code, count, colorama.Fore.WHITE))
-			elif code == 0:
-				tmp.append(self.__row("Errors", count, colorama.Fore.WHITE))
-			elif code == -1:
-				tmp.append(self.__row("Ignored", count, colorama.Fore.WHITE))
-			elif code == -2:
-				tmp.append(self.__row("Duplicates", count, colorama.Fore.WHITE))
-		if tmp:
-			print(tabulate.tabulate(tmp, ["Code", "Count"], tablefmt = "outline", colalign = ("left", "left")))
+				stats.append(self.__stats_row(code, count, colorama.Fore.GREEN))
+			elif code >= 100:
+				stats.append(self.__stats_row(code, count, colorama.Fore.WHITE))
+		if stats or special:
+			print(tabulate.tabulate(stats + special, ["Status Code", "Count"], tablefmt = "outline", colalign = ("left", "right")))
 
 # ----------------------------------------
 
@@ -1487,9 +1592,9 @@ class Progress:
 # ----------------------------------------
 
 class MyArgParser(argparse.ArgumentParser):
-	
+
 	def print_help(self):
-		print("Forbidden v10.9 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v11.0 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1508,7 +1613,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("TESTS")
 		print("    Tests to run")
 		print("    Use comma-separated values")
-		print("    -t, --tests = base | methods | [method|scheme|port]-overrides | headers | paths | encodings | auths | redirects | parsers | all")
+		print("    -t, --tests = base | methods | (method|scheme|port)-overrides | headers | paths[-sniper] | encodings | auths | redirects | parsers | all")
 		print("FORCE")
 		print("    Force an HTTP method for all non-specific test cases")
 		print("    -f, --force = GET | POST | CUSTOM | etc.")
@@ -1527,6 +1632,15 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Tests: headers | redirects")
 		print("    Default: https://github.com")
 		print("    -e, --evil = https://xyz.interact.sh | https://xyz.burpcollaborator.net | etc.")
+		print("HEADER")
+		print("    Specify any number of extra headers to send with requests")
+		print("    Extra headers cannot override test headers")
+		print("    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.")
+		print("    -H, --header = \"Authorization: Bearer ey...\" | Content-Type; | etc.")
+		print("COOKIE")
+		print("    Specify any number of extra cookies to send with requests")
+		print("    Extra cookies cannot override test cookies")
+		print("    -b, --cookie = PHPSESSIONID=3301 | etc.")
 		print("IGNORE")
 		print("    Filter out 200 OK false positive results with RegEx")
 		print("    Spacing will be stripped")
@@ -1558,6 +1672,10 @@ class MyArgParser(argparse.ArgumentParser):
 		print("PROXY")
 		print("    Web proxy to use")
 		print("    -x, --proxy = http://127.0.0.1:8080 | etc.")
+		print("SHOW TABLE")
+		print("    Display the results in a table instead of JSON")
+		print("    Intended for a wide screen use")
+		print("    -st, --show-table")
 		print("OUT")
 		print("    Output file")
 		print("    -o, --out = results.json | etc.")
@@ -1567,7 +1685,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 	def error(self, message):
 		if len(sys.argv) > 1:
-			print("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -i, -l, -rt, -th, -s, -a, -x, -o, -dbg)")
+			print("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -H, -b, -i, -l, -rt, -th, -s, -a, -x, -o, -dbg)")
 			print("Use -h or --help for more info")
 		else:
 			self.print_help()
@@ -1586,6 +1704,8 @@ class Validate:
 		self.__parser.add_argument("-v"   , "--values"                          , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-p"   , "--path"                            , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-e"   , "--evil"                            , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-H"   , "--header"                          , required = False, action = "append"    , nargs   = "+"  )
+		self.__parser.add_argument("-b"   , "--cookie"                          , required = False, action = "append"    , nargs   = "+"  )
 		self.__parser.add_argument("-i"   , "--ignore"                          , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-l"   , "--content-lengths"                 , required = False, type   = str.lower   , default = ""   )
 		self.__parser.add_argument("-rt"  , "--request-timeout"                 , required = False, type   = str         , default = ""   )
@@ -1593,6 +1713,7 @@ class Validate:
 		self.__parser.add_argument("-s"   , "--sleep"                           , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-x"   , "--proxy"                           , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-st"  , "--show-table"                      , required = False, action = "store_true", default = False)
 		self.__parser.add_argument("-o"   , "--out"                             , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-dbg" , "--debug"                           , required = False, action = "store_true", default = False)
 
@@ -1603,6 +1724,8 @@ class Validate:
 		self.__args.values          = self.__parse_values(self.__args.values)                   if self.__args.values          else []
 		self.__args.path            = self.__parse_path(self.__args.path)                       if self.__args.path            else ["/robots.txt", "/index.html", "/sitemap.xml", "/README.txt"]
 		self.__args.evil            = self.__parse_url(self.__args.evil, "evil")                if self.__args.evil            else "https://github.com"
+		self.__args.header          = self.__parse_header(self.__args.header)                   if self.__args.header          else []
+		self.__args.cookie          = self.__parse_cookie(self.__args.cookie)                   if self.__args.cookie          else []
 		self.__args.ignore          = self.__parse_ignore(self.__args.ignore)                   if self.__args.ignore          else ""
 		self.__args.content_lengths = self.__parse_content_lengths(self.__args.content_lengths) if self.__args.content_lengths else []
 		self.__args.request_timeout = self.__parse_request_timeout(self.__args.request_timeout) if self.__args.request_timeout else 60
@@ -1670,8 +1793,8 @@ class Validate:
 			entry = entry.strip()
 			if not entry:
 				continue
-			elif entry not in ["base", "methods", "method-overrides", "scheme-overrides", "port-overrides", "headers", "paths", "encodings", "auths", "redirects", "parsers", "all"]:
-				self.__error("Supported tests are 'base', 'methods', '[method|scheme|port]-overrides', 'headers', 'paths', 'encodings', 'auths', 'redirects', 'parsers', or 'all'")
+			elif entry not in ["base", "methods", "method-overrides", "scheme-overrides", "port-overrides", "headers", "paths", "paths-sniper", "encodings", "auths", "redirects", "parsers", "all"]:
+				self.__error("Supported tests are 'base', 'methods', '(method|scheme|port)-overrides', 'headers', 'paths[-sniper]', 'encodings', 'auths', 'redirects', 'parsers', or 'all'")
 				break
 			elif entry == "all":
 				tmp = [entry]
@@ -1697,11 +1820,33 @@ class Validate:
 	def __parse_path(self, value):
 		return [prepend_slash(replace_multiple_slashes(value))]
 
+	def __parse_header(self, headers):
+		tmp = []
+		for header in headers:
+			header = header[0]
+			key, value = get_header_key_value(header)
+			if not key:
+				self.__error(("Invalid header: {0}").format(header))
+				continue
+			tmp.append(format_header_key_value(key, value))
+		return tmp
+
+	def __parse_cookie(self, cookies):
+		tmp = []
+		for cookie in cookies:
+			cookie = cookie[0]
+			key, value = get_cookie_key_value(cookie)
+			if not key:
+				self.__error(("Invalid cookie: {0}").format(cookie))
+				continue
+			tmp.append(format_cookie_key_value(key, value))
+		return tmp
+
 	def __parse_ignore(self, value):
 		try:
 			re.compile(value)
 		except re.error:
-			self.__error("Invalid RegEx")
+			self.__error(("Invalid RegEx: {0}").format(value))
 		return value
 
 	def __parse_content_lengths(self, value):
@@ -1762,7 +1907,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v10.9                             #")
+		print("#                             Forbidden v11.0                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")
@@ -1780,6 +1925,8 @@ def main():
 			validate.get_arg("values"),
 			validate.get_arg("path"),
 			validate.get_arg("evil"),
+			validate.get_arg("header"),
+			validate.get_arg("cookie"),
 			validate.get_arg("ignore"),
 			validate.get_arg("content_lengths"),
 			validate.get_arg("request_timeout"),
@@ -1787,6 +1934,7 @@ def main():
 			validate.get_arg("sleep"),
 			validate.get_arg("user_agent"),
 			validate.get_arg("proxy"),
+			validate.get_arg("show_table"),
 			validate.get_arg("debug")
 		)
 		forbidden.run()

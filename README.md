@@ -49,7 +49,8 @@ Made for educational purposes. I hope it will help!
 
 **Remarks:**
 
-* Python Requests seems to be up to 3x faster than PycURL, but PycURL is more customizable,
+* Python Requests is up to 3x faster than PycURL, but PycURL is more customizable,
+* only `2xx` and `3xx` status codes are included in the output and results,
 * beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
 * connection and read timeout is set to `60` seconds,
 * `length` attribute in results includes only HTTP response body length,
@@ -64,11 +65,11 @@ Made for educational purposes. I hope it will help!
 
 * use brute forcing to find allowed HTTP methods if HTTP OPTIONS method is not allowed,
 * test HTTP cookies, `User-Agent` HTTP request header, CRLF, and Log4j,
-* add more path bypasses.
+* ~add more path bypasses.~
 
 **Low priority plans:**
 
-* table output to make results more readable and take less screen space,
+* ~~table output to make results more readable,~~
 * add option to test custom HTTP header-value pairs for a list of domains/subdomains.
 
 ## Table of Contents
@@ -138,7 +139,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-10.9-py3-none-any.whl
+python3 -m pip install dist/forbidden-11.0-py3-none-any.whl
 ```
 
 ## Automation
@@ -313,7 +314,7 @@ X-Wap-Profile
 
 # URL Paths
 
-Inject at the beginning, end, and both, beginning and end of the URL path. All possible combinations.
+Inject at the beginning, end, and both, beginning and end of the URL path. Use one payload set to test all positions simultaneously (sniper) or test using every possible combinations of payload set (cluster bomb - default).
 
 ```fundamental
 /
@@ -322,12 +323,15 @@ Inject at the beginning, end, and both, beginning and end of the URL path. All p
 %20
 %23
 %2e
+%a0
 *
 .
 ..
 ;
 .;
 ..;
+/;/
+;/../../
 ;foo=bar;
 ```
 
@@ -381,9 +385,10 @@ Inject at the end of the URL path only if it does not end with forward slash.
         "headers": [
             "Host: 127.0.0.1"
         ],
+        "cookies": [],
         "body": null,
-        "user_agent": "Forbidden/10.9",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.9' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/11.0",
+        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/11.0' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     },
@@ -394,9 +399,10 @@ Inject at the end of the URL path only if it does not end with forward slash.
         "headers": [
             "Host: 127.0.0.1:443"
         ],
+        "cookies": [],
         "body": null,
-        "user_agent": "Forbidden/10.9",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.9' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/11.0",
+        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/11.0' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     }
@@ -406,7 +412,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v10.9 ( github.com/ivan-sincek/forbidden )
+Forbidden v11.0 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -425,7 +431,7 @@ IGNORE CURL
 TESTS
     Tests to run
     Use comma-separated values
-    -t, --tests = base | methods | [method|scheme|port]-overrides | headers | paths | encodings | auths | redirects | parsers | all
+    -t, --tests = base | methods | (method|scheme|port)-overrides | headers | paths[-sniper] | encodings | auths | redirects | parsers | all
 FORCE
     Force an HTTP method for all non-specific test cases
     -f, --force = GET | POST | CUSTOM | etc.
@@ -444,6 +450,15 @@ EVIL
     Tests: headers | redirects
     Default: https://github.com
     -e, --evil = https://xyz.interact.sh | https://xyz.burpcollaborator.net | etc.
+HEADER
+    Specify any number of extra headers to send with requests
+    Extra headers cannot override test headers
+    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.
+    -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
+COOKIE
+    Specify any number of extra cookies to send with requests
+    Extra cookies cannot override test cookies
+    -b, --cookie = PHPSESSIONID=3301 | etc.
 IGNORE
     Filter out 200 OK false positive results with RegEx
     Spacing will be stripped
@@ -470,11 +485,15 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/10.9
+    Default: Forbidden/11.0
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
     -x, --proxy = http://127.0.0.1:8080 | etc.
+SHOW TABLE
+    Display the results in a table instead of JSON
+    Intended for a wide screen use
+    -st, --show-table
 OUT
     Output file
     -o, --out = results.json | etc.
@@ -484,7 +503,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v10.9 ( github.com/ivan-sincek/forbidden )
+Stresser v11.0 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -503,6 +522,15 @@ IGNORE CURL
 FORCE
     Force an HTTP method for all non-specific test cases
     -f, --force = GET | POST | CUSTOM | etc.
+HEADER
+    Specify any number of extra headers to send with requests
+    Extra headers cannot override test headers
+    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.
+    -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
+COOKIE
+    Specify any number of extra cookies to send with requests
+    Extra cookies cannot override test cookies
+    -b, --cookie = PHPSESSIONID=3301 | etc.
 IGNORE
     Filter out 200 OK false positive results with RegEx
     Spacing will be stripped
@@ -524,11 +552,15 @@ THREADS
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/10.9
+    Default: Stresser/11.0
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
     -x, --proxy = http://127.0.0.1:8080 | etc.
+SHOW TABLE
+    Display the results in a table instead of JSON
+    Intended for a wide screen use
+    -st, --show-table
 OUT
     Output file
     -o, --out = results.json | etc.
@@ -546,3 +578,7 @@ DEBUG
 <p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example.png" alt="Basic Example"></p>
 
 <p align="center">Figure 1 - Basic Example</p>
+
+<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example_table.png" alt="Basic Example"></p>
+
+<p align="center">Figure 2 - Basic Example (Table)</p>

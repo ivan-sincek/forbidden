@@ -34,6 +34,35 @@ def set_param(value, param = ""):
 
 # ----------------------------------------
 
+def get_header_key_value(header):
+	key = ""; value = ""
+	if re.search(r"^.+\:.+$", header):
+		key, value = header.split(":", 1)
+	elif re.search(r"^[^\;]+\;$", header):
+		key, value = header.split(";", 1)
+	return key.strip(), value.strip()
+
+def format_header_key_value(key, value):
+	return ("{0}: {1}").format(key, value) if value else ("{0};").format(key)
+
+def get_cookie_key_value(cookie):
+	key = ""; value = ""
+	if re.search(r"^[^\=\;]+\=[^\=\;]+$|^[^\=\;]+\=$", cookie):
+		key, value = cookie.split("=", 1)
+	return key.strip(), value.strip()
+
+def format_cookie_key_value(key, value):
+	return ("{0}={1}").format(key, value)
+
+def cookies_to_dict(cookies):
+	tmp = {}
+	for cookie in cookies:
+		key, value = cookie.split("=")
+		tmp[key] = value
+	return tmp
+
+# ----------------------------------------
+
 def get_base_https_url(scheme, dnp, port, full_path):
 	return ("https://{0}:{1}{2}").format(dnp, port if scheme == "https" else 443, full_path)
 
@@ -155,7 +184,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/10.9"
+default_user_agent = "Stresser/11.0"
 
 def get_all_user_agents():
 	tmp = []
@@ -174,13 +203,19 @@ def get_random_user_agent():
 
 # ----------------------------------------
 
+ERROR     =  0
+IGNORED   = -1
+DUPLICATE = -2
+
 class Stresser:
 
-	def __init__(self, url, ignore_qsf, ignore_curl, force, ignore, content_lengths, request_timeout, repeat, threads, user_agents, proxy, directory, debug):
+	def __init__(self, url, ignore_qsf, ignore_curl, force, headers, cookies, ignore, content_lengths, request_timeout, repeat, threads, user_agents, proxy, directory, show_table, debug):
 		# --------------------------------
 		# NOTE: User-controlled input.
 		self.__url             = self.__parse_url(url, bool(ignore_qsf))
 		self.__force           = force
+		self.__headers         = headers
+		self.__cookies         = cookies
 		self.__ignore          = ignore
 		self.__content_lengths = content_lengths
 		self.__repeat          = repeat
@@ -188,6 +223,7 @@ class Stresser:
 		self.__user_agents     = user_agents
 		self.__user_agents_len = len(self.__user_agents)
 		self.__proxy           = proxy
+		self.__show_table      = show_table
 		self.__directory       = directory
 		self.__debug           = debug
 		# --------------------------------
@@ -375,11 +411,11 @@ class Stresser:
 				print_green(("Allowed HTTP methods: [{0}]").format((", ").join(self.__allowed_methods)))
 		# --------------------------------
 
-	def __fetch(self, url, method = None, headers = None, body = None, user_agent = None, proxy = None, curl = None, passthrough = True):
-		record = self.__record("SYSTEM-0", url, method, headers, body, user_agent, proxy, curl)
+	def __fetch(self, url, method = None, headers = None, cookies = None, body = None, user_agent = None, proxy = None, curl = None, passthrough = True):
+		record = self.__record("SYSTEM-0", url, method, headers, cookies, body, user_agent, proxy, curl)
 		return self.__send_curl(record, passthrough) if record["curl"] else self.__send_request(record, passthrough)
 
-	def __records(self, identifier, urls, methods = None, headers = None, body = None, user_agent = None, proxy = None, curl = None, repeat = None):
+	def __records(self, identifier, urls, methods = None, headers = None, cookies = None, body = None, user_agent = None, proxy = None, curl = None, repeat = None):
 		if not isinstance(urls, list):
 			urls = [urls]
 		if not isinstance(methods, list):
@@ -394,23 +430,25 @@ class Stresser:
 							# NOTE: Python cURL accepts only string arrays as HTTP request headers.
 							header = [header]
 						for i in range(repeat):
-							self.__collection.append(self.__record(identifier, url, method, header, body, user_agent, proxy, curl))
+							self.__collection.append(self.__record(identifier, url, method, header, cookies, body, user_agent, proxy, curl))
 		else:
 			for url in urls:
 				for method in methods:
 					for i in range(repeat):
-						self.__collection.append(self.__record(identifier, url, method, [], body, user_agent, proxy, curl))
+						self.__collection.append(self.__record(identifier, url, method, [], cookies, body, user_agent, proxy, curl))
 
-	def __record(self, identifier, url, method, headers, body, user_agent, proxy, curl):
+	def __record(self, identifier, url, method, headers, cookies, body, user_agent, proxy, curl):
 		self.__identifier += 1
 		# identifier = ("{0}-{1}").format(self.__identifier, identifier)
 		if not method:
 			method = self.__force if self.__force else self.__default_method
+		headers = self.__inspect_headers(headers)
+		cookies = self.__inspect_cookies(cookies)
 		if not user_agent:
 			user_agent = self.__user_agents[random.randint(0, self.__user_agents_len - 1)] if self.__user_agents_len > 1 else self.__user_agents[0]
 		if not proxy:
 			proxy = self.__proxy
-		if not curl:
+		if not curl and curl is not False:
 			curl = self.__curl
 		record = {
 			"raw"             : self.__identifier,
@@ -418,11 +456,12 @@ class Stresser:
 			"url"             : url,
 			"method"          : method,
 			"headers"         : headers,
+			"cookies"         : cookies,
 			"body"            : body,
 			"user_agent"      : user_agent,
 			"proxy"           : proxy,
 			"command"         : None,
-			"code"            : 0,
+			"code"            : ERROR,
 			"length"          : 0,
 			"response"        : None,
 			"response_headers": None,
@@ -430,6 +469,36 @@ class Stresser:
 		}
 		record["command"] = self.__build_command(record)
 		return record
+
+	def __inspect_headers(self, headers = None):
+		tmp = []
+		exists = set()
+		if headers:
+			for header in headers:
+				key, value = get_header_key_value(header)
+				if key:
+					exists.add(key.lower())
+					tmp.append(format_header_key_value(key, value))
+		for header in self.__headers:
+			key, value = get_header_key_value(header)
+			if key and key.lower() not in exists: # NOTE: Extra headers cannot override test headers.
+				tmp.append(format_header_key_value(key, value))
+		return tmp
+
+	def __inspect_cookies(self, cookies = None):
+		tmp = []
+		exists = set()
+		if cookies:
+			for cookie in cookies:
+				key, value = get_cookie_key_value(cookie)
+				if key:
+					exists.add(key.lower())
+					tmp.append(format_cookie_key_value(key, value))
+		for cookie in self.__cookies:
+			key, value = get_cookie_key_value(cookie)
+			if key and key.lower() not in exists: # NOTE: Extra cookies cannot override test cookies.
+				tmp.append(format_cookie_key_value(key, value))
+		return tmp
 
 	def __build_command(self, record):
 		tmp = ["curl", ("--connect-timeout {0}").format(self.__connect_timeout), ("-m {0}").format(self.__read_timeout), "-iskL", ("--max-redirs {0}").format(self.__max_redirects), "--path-as-is"]
@@ -507,6 +576,8 @@ class Stresser:
 				curl.setopt(pycurl.USERAGENT, self.__encode(record["user_agent"]))
 			if record["headers"]:
 				curl.setopt(pycurl.HTTPHEADER, self.__encode(record["headers"])) # Will override 'User-Agent' HTTP request header.
+			if record["cookies"]:
+				curl.setopt(pycurl.COOKIE, ("; ").join(record["cookies"]))
 			if record["body"]:
 				curl.setopt(pycurl.POSTFIELDS, record["body"])
 			if record["proxy"]:
@@ -522,7 +593,7 @@ class Stresser:
 				record["response_headers"] = self.__decode(headers.getvalue())
 				# record["response"] = self.__decode(content)
 			elif record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, self.__decode(content), self.__regex_flags)):
-				record["code"] = -1
+				record["code"] = IGNORED
 			# NOTE: Additional validation to prevent congestion from writing large and usless data to files.
 			elif record["code"] >= 200 and record["code"] < 400:
 				file = os.path.join(self.__directory, ("{0}.txt").format(record["id"]))
@@ -567,6 +638,8 @@ class Stresser:
 				request.headers["User-Agent"] = self.__encode(record["user_agent"])
 			if record["headers"]:
 				self.__set_double_headers(request, record["headers"]) # Will override 'User-Agent' HTTP request header.
+			if record["cookies"]:
+				session.cookies.update(cookies_to_dict(record["cookies"]))
 			if record["body"]:
 				request.data = record["body"]
 			if record["proxy"]:
@@ -590,7 +663,7 @@ class Stresser:
 				record["response_headers"] = dict(response.headers)
 				# record["response"] = self.__decode(content)
 			elif record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, self.__decode(content), self.__regex_flags)):
-				record["code"] = -1
+				record["code"] = IGNORED
 			# NOTE: Additional validation to prevent congestion from writing large and usless data to files.
 			elif record["code"] >= 200 and record["code"] < 400:
 				file = os.path.join(self.__directory, ("{0}.txt").format(record["id"]))
@@ -614,51 +687,22 @@ class Stresser:
 	def __set_double_headers(self, request, headers):
 		exists = set()
 		for header in headers:
-			array = header.split(":", 1)
-			key = array[0].rstrip(";")
-			value = self.__encode(array[1].strip() if len(array) > 1 else "")
-			request.headers[key if key not in exists and not exists.add(key) else uniquestr(key)] = value
+			key, value = get_header_key_value(header)
+			request.headers[key if key not in exists and not exists.add(key) else uniquestr(key)] = self.__encode(value) # NOTE: Allows double headers.
 
 	def __validate_results(self):
-		tmp = []
-		# --------------------------------
 		print_time("Validating results...")
 		self.__mark_duplicates()
-		table = Table(self.__collection) # unfiltered
-		# --------------------------------
-		self.__collection = pop(sorted([record for record in self.__collection if record["code"] > 0], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response_headers", "response", "curl"])
-		# --------------------------------
-		for record in self.__collection:
-			if record["code"] >= 500:
-				continue
-				print_cyan(jdump(record))
-				tmp.append(record)
-			elif record["code"] >= 400:
-				continue
-				print_red(jdump(record))
-				tmp.append(record)
-			elif record["code"] >= 300:
-				# continue
-				print_yellow(jdump(record))
-				tmp.append(record)
-			elif record["code"] >= 200:
-				# continue
-				print_green(jdump(record))
-				tmp.append(record)
-			elif record["code"] > 0:
-				continue
-				print_white(jdump(record))
-				tmp.append(record)
-		# --------------------------------
-		self.__collection = tmp
-		table.show()
+		output = Output(self.__collection)
+		self.__collection = output.results_table() if self.__show_table else output.results_json()
+		output.stats_table()
 
 	def __mark_duplicates(self):
 		exists = set()
 		for record in self.__collection:
 			if record["id"] not in exists and not exists.add(record["id"]):
 				continue
-			record["code"] = -2
+			record["code"] = DUPLICATE
 
 	def __prepare_collection(self):
 		print_time("Preparing test records...")
@@ -671,46 +715,102 @@ class Stresser:
 
 # ----------------------------------------
 
-class Table:
+class Output:
 
 	def __init__(self, collection):
-		self.__table = self.__init_table(collection)
+		self.__collection = pop(sorted([record for record in collection if record["code"] >= 100 and record["code"] < 600], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response_headers", "response", "curl"]) # filtered
+		self.__stats      = self.__count(collection) # unfiltered
 
-	def __init_table(self, collection):
-		table = {}
-		for record in collection:
-			if record["code"] not in table:
-				table[record["code"]] = 0
-			table[record["code"]] += 1
-		return dict(sorted(table.items()))
+	def __color(self, value, color):
+		return ("{0}{1}{2}").format(color, value, colorama.Style.RESET_ALL)
 
-	def __row(self, code, count, color):
-		return [
-			("{0}{1}{2}").format(color, code, colorama.Style.RESET_ALL),
-			("{0}{1}{2}").format(color, count, colorama.Style.RESET_ALL)
-		]
+	def __results_row(self, record, color):
+		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
 
-	def show(self):
+	def results_table(self):
 		tmp = []
-		for code, count in self.__table.items():
-			if code >= 500:
-				tmp.append(self.__row(code, count, colorama.Fore.CYAN))
+		results = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				continue
+				results.append(self.__results_row(record, colorama.Fore.CYAN))
+			elif record["code"] >= 400:
+				continue
+				results.append(self.__results_row(record, colorama.Fore.RED))
+			elif record["code"] >= 300:
+				# continue
+				results.append(self.__results_row(record, colorama.Fore.YELLOW))
+			elif record["code"] >= 200:
+				# continue
+				results.append(self.__results_row(record, colorama.Fore.GREEN))
+			elif record["code"] >= 100:
+				continue
+				results.append(self.__results_row(record, colorama.Fore.WHITE))
+			tmp.append(record)
+		if results:
+			print(tabulate.tabulate(results, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
+		return tmp
+
+	def results_json(self):
+		tmp = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				continue
+				print_cyan(jdump(record))
+			elif record["code"] >= 400:
+				continue
+				print_red(jdump(record))
+			elif record["code"] >= 300:
+				# continue
+				print_yellow(jdump(record))
+			elif record["code"] >= 200:
+				# continue
+				print_green(jdump(record))
+			elif record["code"] >= 100:
+				continue
+				print_white(jdump(record))
+			tmp.append(record)
+		return tmp
+
+	def __count(self, collection):
+		tmp = {}
+		for record in collection:
+			if record["code"] not in tmp:
+				tmp[record["code"]] = 0
+			tmp[record["code"]] += 1
+		return dict(sorted(tmp.items()))
+
+	def __stats_row(self, code, count, color):
+		return [self.__color(entry, color) for entry in [code, count]]
+
+	def stats_table(self):
+		stats = []
+		special = []
+		for code, count in self.__stats.items():
+			if code == ERROR:
+				special.append(self.__stats_row("Errors", count, colorama.Fore.WHITE))
+			elif code == IGNORED:
+				special.append(self.__stats_row("Ignored", count, colorama.Fore.WHITE))
+			elif code == DUPLICATE:
+				special.append(self.__stats_row("Duplicates", count, colorama.Fore.WHITE))
+			elif code < 100 or code >= 600:
+				continue
+			elif code >= 500:
+				stats.append(self.__stats_row(code, count, colorama.Fore.CYAN))
 			elif code >= 400:
-				tmp.append(self.__row(code, count, colorama.Fore.RED))
+				stats.append(self.__stats_row(code, count, colorama.Fore.RED))
 			elif code >= 300:
-				tmp.append(self.__row(code, count, colorama.Fore.YELLOW))
+				stats.append(self.__stats_row(code, count, colorama.Fore.YELLOW))
 			elif code >= 200:
-				tmp.append(self.__row(code, count, colorama.Fore.GREEN))
-			elif code > 0:
-				tmp.append(self.__row(code, count, colorama.Fore.WHITE))
-			elif code == 0:
-				tmp.append(self.__row("Errors", count, colorama.Fore.WHITE))
-			elif code == -1:
-				tmp.append(self.__row("Ignored", count, colorama.Fore.WHITE))
-			elif code == -2:
-				tmp.append(self.__row("Duplicates", count, colorama.Fore.WHITE))
-		if tmp:
-			print(tabulate.tabulate(tmp, ["Code", "Count"], tablefmt = "outline", colalign = ("left", "left")))
+				stats.append(self.__stats_row(code, count, colorama.Fore.GREEN))
+			elif code >= 100:
+				stats.append(self.__stats_row(code, count, colorama.Fore.WHITE))
+		if stats or special:
+			print(tabulate.tabulate(stats + special, ["Status Code", "Count"], tablefmt = "outline", colalign = ("left", "right")))
 
 # ----------------------------------------
 
@@ -729,9 +829,9 @@ class Progress:
 # ----------------------------------------
 
 class MyArgParser(argparse.ArgumentParser):
-	
+
 	def print_help(self):
-		print("Stresser v10.9 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v11.0 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -750,6 +850,15 @@ class MyArgParser(argparse.ArgumentParser):
 		print("FORCE")
 		print("    Force an HTTP method for all non-specific test cases")
 		print("    -f, --force = GET | POST | CUSTOM | etc.")
+		print("HEADER")
+		print("    Specify any number of extra headers to send with requests")
+		print("    Extra headers cannot override test headers")
+		print("    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.")
+		print("    -H, --header = \"Authorization: Bearer ey...\" | Content-Type; | etc.")
+		print("COOKIE")
+		print("    Specify any number of extra cookies to send with requests")
+		print("    Extra cookies cannot override test cookies")
+		print("    -b, --cookie = PHPSESSIONID=3301 | etc.")
 		print("IGNORE")
 		print("    Filter out 200 OK false positive results with RegEx")
 		print("    Spacing will be stripped")
@@ -776,6 +885,10 @@ class MyArgParser(argparse.ArgumentParser):
 		print("PROXY")
 		print("    Web proxy to use")
 		print("    -x, --proxy = http://127.0.0.1:8080 | etc.")
+		print("SHOW TABLE")
+		print("    Display the results in a table instead of JSON")
+		print("    Intended for a wide screen use")
+		print("    -st, --show-table")
 		print("OUT")
 		print("    Output file")
 		print("    -o, --out = results.json | etc.")
@@ -789,7 +902,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 	def error(self, message):
 		if len(sys.argv) > 1:
-			print("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-iqsf, -ic, -f, -i, -l, -rt, -a, -x, -o, -dbg)")
+			print("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-iqsf, -ic, -f, -H, -b, -i, -l, -rt, -a, -x, -o, -dbg)")
 			print("Use -h or --help for more info")
 		else:
 			self.print_help()
@@ -804,6 +917,8 @@ class Validate:
 		self.__parser.add_argument("-iqsf", "--ignore-query-string-and-fragment", required = False, action = "store_true", default = False)
 		self.__parser.add_argument("-ic"  , "--ignore-curl"                     , required = False, action = "store_true", default = False)
 		self.__parser.add_argument("-f"   , "--force"                           , required = False, type   = str.upper   , default = ""   )
+		self.__parser.add_argument("-H"   , "--header"                          , required = False, action = "append"    , nargs   = "+"  )
+		self.__parser.add_argument("-b"   , "--cookie"                          , required = False, action = "append"    , nargs   = "+"  )
 		self.__parser.add_argument("-i"   , "--ignore"                          , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-l"   , "--content-lengths"                 , required = False, type   = str.lower   , default = ""   )
 		self.__parser.add_argument("-rt"  , "--request-timeout"                 , required = False, type   = str         , default = ""   )
@@ -811,6 +926,7 @@ class Validate:
 		self.__parser.add_argument("-th"  , "--threads"                         , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-x"   , "--proxy"                           , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-st"  , "--show-table"                      , required = False, action = "store_true", default = False)
 		self.__parser.add_argument("-o"   , "--out"                             , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-dir" , "--directory"                       , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-dbg" , "--debug"                           , required = False, action = "store_true", default = False)
@@ -818,6 +934,8 @@ class Validate:
 	def run(self):
 		self.__args                 = self.__parser.parse_args()
 		self.__args.url             = self.__parse_url(self.__args.url, "url")                  # required
+		self.__args.header          = self.__parse_header(self.__args.header)                   if self.__args.header          else []
+		self.__args.cookie          = self.__parse_cookie(self.__args.cookie)                   if self.__args.cookie          else []
 		self.__args.ignore          = self.__parse_ignore(self.__args.ignore)                   if self.__args.ignore          else ""
 		self.__args.content_lengths = self.__parse_content_lengths(self.__args.content_lengths) if self.__args.content_lengths else []
 		self.__args.request_timeout = self.__parse_request_timeout(self.__args.request_timeout) if self.__args.request_timeout else 60
@@ -871,11 +989,33 @@ class Validate:
 			self.__error(data[key]["port_error"])
 		return value
 
+	def __parse_header(self, headers):
+		tmp = []
+		for header in headers:
+			header = header[0]
+			key, value = get_header_key_value(header)
+			if not key:
+				self.__error(("Invalid header: {0}").format(header))
+				continue
+			tmp.append(format_header_key_value(key, value))
+		return tmp
+
+	def __parse_cookie(self, cookies):
+		tmp = []
+		for cookie in cookies:
+			cookie = cookie[0]
+			key, value = get_cookie_key_value(cookie)
+			if not key:
+				self.__error(("Invalid cookie: {0}").format(cookie))
+				continue
+			tmp.append(format_cookie_key_value(key, value))
+		return tmp
+
 	def __parse_ignore(self, value):
 		try:
 			re.compile(value)
 		except re.error:
-			self.__error("Invalid RegEx")
+			self.__error(("Invalid RegEx: {0}").format(value))
 		return value
 
 	def __parse_content_lengths(self, value):
@@ -941,7 +1081,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v10.9                             #")
+		print("#                             Stresser v11.0                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
@@ -955,6 +1095,8 @@ def main():
 			validate.get_arg("ignore_query_string_and_fragment"),
 			validate.get_arg("ignore_curl"),
 			validate.get_arg("force"),
+			validate.get_arg("header"),
+			validate.get_arg("cookie"),
 			validate.get_arg("ignore"),
 			validate.get_arg("content_lengths"),
 			validate.get_arg("request_timeout"),
@@ -963,6 +1105,7 @@ def main():
 			validate.get_arg("user_agent"),
 			validate.get_arg("proxy"),
 			validate.get_arg("directory"),
+			validate.get_arg("show_table"),
 			validate.get_arg("debug")
 		)
 		stresser.run()
