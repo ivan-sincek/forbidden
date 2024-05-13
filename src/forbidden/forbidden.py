@@ -21,7 +21,7 @@ stopwatch = Stopwatch()
 
 # ----------------------------------------
 
-default_quotes = "'"
+default_quotes = "'" # NOTE: Default quotes in the JSON 'command' attribute.
 
 def escape_quotes(value):
 	return str(value).replace(default_quotes, ("\\{0}").format(default_quotes))
@@ -54,10 +54,10 @@ def get_cookie_key_value(cookie):
 def format_cookie_key_value(key, value):
 	return ("{0}={1}").format(key, value)
 
-def cookies_to_dict(cookies):
+def array_to_dict(array, separator):
 	tmp = {}
-	for cookie in cookies:
-		key, value = cookie.split("=")
+	for entry in array:
+		key, value = entry.split(separator)
 		tmp[key] = value
 	return tmp
 
@@ -317,6 +317,8 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
+# ----------------------------------------
+
 default_user_agent = "Forbidden/11.0"
 
 def get_all_user_agents():
@@ -362,7 +364,7 @@ class Forbidden:
 		self.__show_table      = show_table
 		self.__debug           = debug
 		# --------------------------------
-		# NOTE: Python cURL configuration.
+		# NOTE: PycURL configuration.
 		self.__curl            = not ignore_curl
 		self.__verify          = False # NOTE: Ignore SSL/TLS verification.
 		self.__allow_redirects = True
@@ -593,7 +595,7 @@ class Forbidden:
 				for method in methods:
 					for header in headers:
 						if not isinstance(header, list):
-							# NOTE: Python cURL accepts only string arrays as HTTP request headers.
+							# NOTE: PycURL accepts only string arrays as HTTP request headers.
 							header = [header]
 						self.__collection.append(self.__record(identifier, url, method, header, cookies, body, user_agent, proxy, curl))
 		else:
@@ -645,7 +647,7 @@ class Forbidden:
 					tmp.append(format_header_key_value(key, value))
 		for header in self.__headers:
 			key, value = get_header_key_value(header)
-			if key and key.lower() not in exists: # NOTE: Extra headers cannot override test headers.
+			if key and key.lower() not in exists: # NOTE: Extra HTTP request headers cannot override test HTTP request headers.
 				tmp.append(format_header_key_value(key, value))
 		return tmp
 
@@ -660,7 +662,7 @@ class Forbidden:
 					tmp.append(format_cookie_key_value(key, value))
 		for cookie in self.__cookies:
 			key, value = get_cookie_key_value(cookie)
-			if key and key.lower() not in exists: # NOTE: Extra cookies cannot override test cookies.
+			if key and key.lower() not in exists: # NOTE: Extra HTTP cookies cannot override test HTTP cookies.
 				tmp.append(format_cookie_key_value(key, value))
 		return tmp
 
@@ -675,6 +677,8 @@ class Forbidden:
 		if record["headers"]:
 			for header in record["headers"]:
 				tmp.append(set_param(header, "-H"))
+		if record["cookies"]:
+			tmp.append(set_param(("; ").join(record["cookies"]), "-b"))
 		tmp.append(set_param(record["method"], "-X"))
 		tmp.append(set_param(record["url"]))
 		tmp = (" ").join(tmp)
@@ -685,7 +689,7 @@ class Forbidden:
 		tmp = []
 		exists = set()
 		for record in self.__collection:
-			command = re.sub((" -A \\{0}.+?\\{0}").format(default_quotes), "", record["command"])
+			command = re.sub((" -A \\{0}.+?\\{0} ").format(default_quotes), " ", record["command"])
 			if command not in exists and not exists.add(command):
 				tmp.append(record)
 		self.__collection = tmp
@@ -810,7 +814,7 @@ class Forbidden:
 			if record["headers"]:
 				self.__set_double_headers(request, record["headers"]) # Will override 'User-Agent' HTTP request header.
 			if record["cookies"]:
-				session.cookies.update(cookies_to_dict(record["cookies"]))
+				session.cookies.update(array_to_dict(record["cookies"], "="))
 			if record["body"]:
 				request.data = record["body"]
 			if record["proxy"]:
@@ -1074,7 +1078,7 @@ class Forbidden:
 			"CHECKOUT",
 			"CONNECT",
 			"COPY",
-			# "DELETE", # NOTE: This HTTP method is dangerous!
+			# "DELETE", # NOTE: Enabling this HTTP method is dangerous!
 			"GET",
 			"HEAD",
 			"INDEX",
@@ -1290,6 +1294,9 @@ class Forbidden:
 		# --------------------------------
 		return unique(tmp)
 
+	def __get_all_headers(self, values):
+		return unique(self.__get_url_headers(values) + self.__get_ip_headers(values))
+
 	def __get_special_headers(self):
 		tmp = []
 		# --------------------------------
@@ -1316,20 +1323,17 @@ class Forbidden:
 		# --------------------------------
 		return unique(tmp)
 
-	def __get_all_headers(self, values):
-		return unique(self.__get_url_headers(values) + self.__get_ip_headers(values))
-
-	def __get_localhost_urls(self):
+	def __get_localhost_values(self):
 		return get_all_domains(self.__url["scheme"], ["localhost", "127.0.0.1", unicode_encode("127.0.0.1"), "127.000.000.001"], self.__url["port"])
 
-	def __get_random_urls(self):
+	def __get_random_values(self):
 		return get_all_domains(self.__url["scheme"], ["192.168.1.1", "172.16.1.1", "173.245.48.1", "10.1.1.1", "169.254.169.254"], self.__url["port"])
 
 	def __get_all_values(self, scheme = True, ip = False):
 		tmp = []
 		domain_extended = "ip_extended" if ip else "domain_extended"
 		localhost = "127.0.0.1" if ip else "localhost"
-		temp = strip_url_schemes(self.__get_localhost_urls() + self.__get_random_urls() + self.__url[domain_extended])
+		temp = strip_url_schemes(self.__get_localhost_values() + self.__get_random_values() + self.__url[domain_extended])
 		if scheme:
 			tmp.extend([("{0}://{1}").format(self.__url["scheme"], entry + self.__url["path_full"]) for entry in temp])
 		else:
@@ -1365,7 +1369,7 @@ class Forbidden:
 		path = self.__url["path"].strip(path_const)
 		# --------------------------------
 		# NOTE: Inject at the beginning, end, and both, beginning and end of the URL path.
-		# NOTE: Use one payload set to test all positions simultaneously (sniper) or test using every possible combinations of payload set (cluster bomb - default).
+		# NOTE: Use one payload set to test all positions simultaneously (sniper) or test using every possible combination of payload set (cluster bomb - default).
 		injections = []
 		for i in ["", "%09", "%20", "%23", "%2e", "%a0", "*", ".", "..", ";", ".;", "..;", "/;/", ";/../../", ";foo=bar;"]:
 			injections.extend([path_const + i + path_const, i + path_const, path_const + i, i])
@@ -1493,32 +1497,31 @@ class Output:
 		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
 
 	def results_table(self):
-		tmp = []
-		results = []
+		tmp = []; table = []
 		for record in self.__collection:
 			if record["code"] < 100 or record["code"] >= 600:
 				continue
 			elif record["code"] >= 500:
 				continue
-				results.append(self.__results_row(record, colorama.Fore.CYAN))
+				table.append(self.__results_row(record, colorama.Fore.CYAN))
 			elif record["code"] >= 400:
 				continue
-				results.append(self.__results_row(record, colorama.Fore.RED))
+				table.append(self.__results_row(record, colorama.Fore.RED))
 			elif record["code"] >= 300:
 				# continue
-				results.append(self.__results_row(record, colorama.Fore.YELLOW))
+				table.append(self.__results_row(record, colorama.Fore.YELLOW))
 			elif record["code"] >= 200:
 				# continue
-				results.append(self.__results_row(record, colorama.Fore.GREEN))
+				table.append(self.__results_row(record, colorama.Fore.GREEN))
 			elif record["code"] >= 100:
 				continue
-				results.append(self.__results_row(record, colorama.Fore.WHITE))
+				table.append(self.__results_row(record, colorama.Fore.WHITE))
 			tmp.append(record)
-		if results:
-			print(tabulate.tabulate(results, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
+		if table:
+			print(tabulate.tabulate(table, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
 		return tmp
 
-	def results_json(self):
+	def results_json(self): # NOTE: To see more or less results, comment in or out 'continue' line.
 		tmp = []
 		for record in self.__collection:
 			if record["code"] < 100 or record["code"] >= 600:
@@ -1553,27 +1556,26 @@ class Output:
 		return [self.__color(entry, color) for entry in [code, count]]
 
 	def stats_table(self):
-		stats = []
-		special = []
+		table = []; table_special = []
 		for code, count in self.__stats.items():
 			if code == ERROR:
-				special.append(self.__stats_row("Errors", count, colorama.Fore.WHITE))
+				table_special.append(self.__stats_row("Errors", count, colorama.Fore.WHITE))
 			elif code == IGNORED:
-				special.append(self.__stats_row("Ignored", count, colorama.Fore.WHITE))
+				table_special.append(self.__stats_row("Ignored", count, colorama.Fore.WHITE))
 			elif code < 100 or code >= 600:
 				continue
 			elif code >= 500:
-				stats.append(self.__stats_row(code, count, colorama.Fore.CYAN))
+				table.append(self.__stats_row(code, count, colorama.Fore.CYAN))
 			elif code >= 400:
-				stats.append(self.__stats_row(code, count, colorama.Fore.RED))
+				table.append(self.__stats_row(code, count, colorama.Fore.RED))
 			elif code >= 300:
-				stats.append(self.__stats_row(code, count, colorama.Fore.YELLOW))
+				table.append(self.__stats_row(code, count, colorama.Fore.YELLOW))
 			elif code >= 200:
-				stats.append(self.__stats_row(code, count, colorama.Fore.GREEN))
+				table.append(self.__stats_row(code, count, colorama.Fore.GREEN))
 			elif code >= 100:
-				stats.append(self.__stats_row(code, count, colorama.Fore.WHITE))
-		if stats or special:
-			print(tabulate.tabulate(stats + special, ["Status Code", "Count"], tablefmt = "outline", colalign = ("left", "right")))
+				table.append(self.__stats_row(code, count, colorama.Fore.WHITE))
+		if table or table_special:
+			print(tabulate.tabulate(table + table_special, ["Status Code", "Count"], tablefmt = "outline", colalign = ("left", "right")))
 
 # ----------------------------------------
 
@@ -1633,13 +1635,13 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Default: https://github.com")
 		print("    -e, --evil = https://xyz.interact.sh | https://xyz.burpcollaborator.net | etc.")
 		print("HEADER")
-		print("    Specify any number of extra headers to send with requests")
-		print("    Extra headers cannot override test headers")
-		print("    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.")
+		print("    Specify any number of extra HTTP request headers")
+		print("    Extra HTTP request headers will not override the test HTTP request headers")
+		print("    Semi-colon in e.g. 'Content-Type;' will expand to an empty HTTP request header.")
 		print("    -H, --header = \"Authorization: Bearer ey...\" | Content-Type; | etc.")
 		print("COOKIE")
-		print("    Specify any number of extra cookies to send with requests")
-		print("    Extra cookies cannot override test cookies")
+		print("    Specify any number of extra HTTP cookies")
+		print("    Extra HTTP cookies will not override the test HTTTP cookies")
 		print("    -b, --cookie = PHPSESSIONID=3301 | etc.")
 		print("IGNORE")
 		print("    Filter out 200 OK false positive results with RegEx")

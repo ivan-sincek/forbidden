@@ -49,13 +49,14 @@ Made for educational purposes. I hope it will help!
 
 **Remarks:**
 
+* all HTTP request headers, values, URL path bypasses, etc. were validated through the official documentation or public infosec write-ups,
 * Python Requests is up to 3x faster than PycURL, but PycURL is more customizable,
-* only `2xx` and `3xx` status codes are included in the output and results,
-* beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
-* connection and read timeout is set to `60` seconds,
+* only `2xx` and `3xx` status codes are included in results and shown in output,
 * `length` attribute in results includes only HTTP response body length,
 * testing `double headers` is locked to `Python Requests` because cURL does not support it,
 * testing `encodings` is locked to `cURL` because Python Requests does not support it,
+* connection and read timeout is set to `60` seconds,
+* beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
 * some web proxies might normalize URLs (e.g. when testing `encodings`),
 * some web proxies might modify HTTP requests or drop them entirely,
 * some websites might require a valid or very specific `User-Agent` HTTP request header,
@@ -314,7 +315,9 @@ X-Wap-Profile
 
 # URL Paths
 
-Inject at the beginning, end, and both, beginning and end of the URL path. Use one payload set to test all positions simultaneously (sniper) or test using every possible combinations of payload set (cluster bomb - default).
+Inject at the beginning, end, and both, beginning and end of the URL path.
+
+You can use one payload set to test all positions simultaneously (sniper) or test using every possible combination of payload set (cluster bomb - default).
 
 ```fundamental
 /
@@ -451,13 +454,13 @@ EVIL
     Default: https://github.com
     -e, --evil = https://xyz.interact.sh | https://xyz.burpcollaborator.net | etc.
 HEADER
-    Specify any number of extra headers to send with requests
-    Extra headers cannot override test headers
-    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.
+    Specify any number of extra HTTP request headers
+    Extra HTTP request headers will not override the test HTTP request headers
+    Semi-colon in e.g. 'Content-Type;' will expand to an empty HTTP request header.
     -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
 COOKIE
-    Specify any number of extra cookies to send with requests
-    Extra cookies cannot override test cookies
+    Specify any number of extra HTTP cookies
+    Extra HTTP cookies will not override the test HTTTP cookies
     -b, --cookie = PHPSESSIONID=3301 | etc.
 IGNORE
     Filter out 200 OK false positive results with RegEx
@@ -523,13 +526,13 @@ FORCE
     Force an HTTP method for all non-specific test cases
     -f, --force = GET | POST | CUSTOM | etc.
 HEADER
-    Specify any number of extra headers to send with requests
-    Extra headers cannot override test headers
-    Semi-colon in e.g. 'Content-Type;' will expand to an empty header.
+    Specify any number of extra HTTP request headers
+    Extra HTTP request headers will not override test HTTP request headers
+    Semi-colon in e.g. 'Content-Type;' will expand to an empty HTTP request header.
     -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
 COOKIE
-    Specify any number of extra cookies to send with requests
-    Extra cookies cannot override test cookies
+    Specify any number of extra HTTP cookies
+    Extra HTTP cookies will not override test HTTTP cookies
     -b, --cookie = PHPSESSIONID=3301 | etc.
 IGNORE
     Filter out 200 OK false positive results with RegEx
