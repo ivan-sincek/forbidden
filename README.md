@@ -140,7 +140,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-11.0-py3-none-any.whl
+python3 -m pip install dist/forbidden-11.2-py3-none-any.whl
 ```
 
 ## Automation
@@ -390,8 +390,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
         ],
         "cookies": [],
         "body": null,
-        "user_agent": "Forbidden/11.0",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/11.0' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/11.2",
+        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/11.2' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     },
@@ -404,8 +404,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
         ],
         "cookies": [],
         "body": null,
-        "user_agent": "Forbidden/11.0",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/11.0' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/11.2",
+        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/11.2' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     }
@@ -415,7 +415,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v11.0 ( github.com/ivan-sincek/forbidden )
+Forbidden v11.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -488,7 +488,7 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/11.0
+    Default: Forbidden/11.2
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -506,7 +506,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v11.0 ( github.com/ivan-sincek/forbidden )
+Stresser v11.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -555,7 +555,7 @@ THREADS
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/11.0
+    Default: Stresser/11.2
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use

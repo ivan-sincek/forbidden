@@ -186,7 +186,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Stresser/11.1"
+default_user_agent = "Stresser/11.2"
 
 def get_all_user_agents():
 	tmp = []
@@ -847,7 +847,7 @@ class Progress:
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Stresser v11.1 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v11.2 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -1097,7 +1097,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v11.1                             #")
+		print("#                             Stresser v11.2                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
