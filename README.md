@@ -79,7 +79,8 @@ Made for educational purposes. I hope it will help!
 	* [Install PycURL](#install-pycurl)
 	* [Standard Install](#standard-install)
 	* [Build and Install From the Source](#build-and-install-from-the-source)
-* [Automation](#automation)
+* [Single URL](#single-url)
+* [Multiple URLs](#multiple-urls)
 * [HTTP Methods](#http-methods)
 * [HTTP Request Headers](#http-request-headers)
 * [URL Paths](#url-paths)
@@ -143,7 +144,41 @@ python3 -m build
 python3 -m pip install dist/forbidden-11.2-py3-none-any.whl
 ```
 
-## Automation
+## Single URL
+
+Bypass `403 Forbidden` HTTP response status code:
+
+```fundamental
+forbidden -u https://target.com -t base,methods,method-overrides,scheme-overrides,port-overrides,headers,paths,encodings -f GET -l base,path -o forbidden_403_results.json
+```
+
+Bypass `403 Forbidden` HTTP response status code with stress testing:
+
+```bash
+mkdir stresser_403_results
+
+stresser -u https://target.com -dir stresser_403_results -ic -r 1000 -th 200 -f GET -l base -o stresser_403_results.json
+```
+
+Bypass `401 Unauthorized` HTTP response status code:
+
+```fundamental
+forbidden -u https://target.com -t auths -f GET -l base -o forbidden_401_results.json
+```
+
+Test open redirects, OOB, and SSRF:
+
+```fundamental
+forbidden -u https://target.com -t redirects -f GET -l base -e xyz.interact.sh -o forbidden_redirect_results.json
+```
+
+Test broken URL parsers, OOB, and SSRF:
+
+```fundamental
+forbidden -u https://target.com -t parsers -f GET -l base -e xyz.interact.sh -o forbidden_parser_results.json
+```
+
+## Multiple URLs
 
 Bypass `403 Forbidden` HTTP response status code:
 
