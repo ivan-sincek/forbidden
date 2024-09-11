@@ -763,6 +763,8 @@ class Stresser:
 		self.__mark_duplicates()
 		output = Output(self.__collection, self.__exclude_from_results, self.__status_codes, self.__show_table)
 		self.__collection = output.show_results()
+		if len(self.__collection) < 1:
+			print_time("All results are ignored")
 		output.show_stats_table()
 
 	def __mark_duplicates(self):
@@ -820,19 +822,23 @@ class Output:
 			elif record["code"] >= 500:
 				if self.__check_status_codes(["5xx", "all"]):
 					table.append(self.__results_row(record, colorama.Fore.CYAN))
+					tmp.append(record)
 			elif record["code"] >= 400:
 				if self.__check_status_codes(["4xx", "all"]):
 					table.append(self.__results_row(record, colorama.Fore.RED))
+					tmp.append(record)
 			elif record["code"] >= 300:
 				if self.__check_status_codes(["3xx", "all"]):
 					table.append(self.__results_row(record, colorama.Fore.YELLOW))
+					tmp.append(record)
 			elif record["code"] >= 200:
 				if self.__check_status_codes(["2xx", "all"]):
 					table.append(self.__results_row(record, colorama.Fore.GREEN))
+					tmp.append(record)
 			elif record["code"] >= 100:
 				if self.__check_status_codes(["1xx", "all"]):
 					table.append(self.__results_row(record, colorama.Fore.WHITE))
-			tmp.append(record)
+					tmp.append(record)
 		if table:
 			print(tabulate.tabulate(table, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
 		return tmp
@@ -847,19 +853,23 @@ class Output:
 			elif record["code"] >= 500:
 				if self.__check_status_codes(["5xx", "all"]):
 					print_cyan(jdump(record))
+					tmp.append(record)
 			elif record["code"] >= 400:
 				if self.__check_status_codes(["4xx", "all"]):
 					print_red(jdump(record))
+					tmp.append(record)
 			elif record["code"] >= 300:
 				if self.__check_status_codes(["3xx", "all"]):
 					print_yellow(jdump(record))
+					tmp.append(record)
 			elif record["code"] >= 200:
 				if self.__check_status_codes(["2xx", "all"]):
 					print_green(jdump(record))
+					tmp.append(record)
 			elif record["code"] >= 100:
 				if self.__check_status_codes(["1xx", "all"]):
 					print_white(jdump(record))
-			tmp.append(record)
+					tmp.append(record)
 		return tmp
 
 	# ------------------------------------
