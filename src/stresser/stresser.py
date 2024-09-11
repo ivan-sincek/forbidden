@@ -21,7 +21,7 @@ stopwatch = Stopwatch()
 
 # ----------------------------------------
 
-default_quotes = "'" # NOTE: Default quotes in the JSON 'command' attribute.
+default_quotes = "'" # NOTE: Default quotes for the JSON 'command' attribute in the results.
 
 def escape_quotes(value):
 	return str(value).replace(default_quotes, ("\\{0}").format(default_quotes))
@@ -69,7 +69,7 @@ def get_base_https_url(scheme, dnp, port, full_path):
 def get_base_http_url(scheme, dnp, port, full_path):
 	return ("http://{0}:{1}{2}").format(dnp, port if scheme == "http" else 80, full_path)
 
-def get_all_domains(scheme, dnps, port): # NOTE: Extends domain names and IPs.
+def get_all_domains(scheme, dnps, port): # NOTE: Can extends both, domain names and IPs.
 	if not isinstance(dnps, list):
 		dnps = [dnps]
 	tmp = []
@@ -140,7 +140,7 @@ def print_time(text):
 
 default_encoding = "ISO-8859-1" # NOTE: ISO-8859-1 works better than UTF-8 when accessing files.
 
-default_encoding_array = ["UTF-8", default_encoding] # NOTE: For HTTP requests / responses, try UTF-8 first.
+default_encoding_array = ["UTF-8", default_encoding] # NOTE: For HTTP requests/responses, try UTF-8 first.
 
 def decode(value):
 	tmp = ""
@@ -201,7 +201,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Stresser/12.1"
+default_user_agent = "Stresser/12.2"
 
 def get_all_user_agents():
 	tmp = []
@@ -226,20 +226,21 @@ DUPLICATE = -2
 
 class Stresser:
 
-	def __init__(self, url, ignore_qsf, ignore_requests, force, headers, cookies, ignore, content_lengths, request_timeout, repeat, threads, user_agents, proxy, directory, show_table, debug):
+	def __init__(self, url, ignore_qsf, ignore_requests, force, headers, cookies, ignore_regex, content_lengths, request_timeout, repeat, threads, user_agents, proxy, status_codes, show_table, directory, debug):
 		# --------------------------------
-		# NOTE: User-controlled input.
+		# NOTE: User-supplied input.
 		self.__url             = self.__parse_url(url, ignore_qsf)
 		self.__force           = force
 		self.__headers         = headers
 		self.__cookies         = cookies
-		self.__ignore          = ignore
+		self.__ignore_regex    = ignore_regex
 		self.__content_lengths = content_lengths
 		self.__repeat          = repeat
 		self.__threads         = threads
 		self.__user_agents     = user_agents
 		self.__user_agents_len = len(self.__user_agents)
 		self.__proxy           = proxy
+		self.__status_codes    = status_codes
 		self.__show_table      = show_table
 		self.__directory       = directory
 		self.__debug           = debug
@@ -253,12 +254,14 @@ class Stresser:
 		self.__read_timeout    = request_timeout
 		self.__regex_flags     = re.MULTILINE | re.IGNORECASE
 		# --------------------------------
-		self.__error           = False
-		self.__print_lock      = threading.Lock()
-		self.__default_method  = "GET"
-		self.__allowed_methods = []
-		self.__collection      = []
-		self.__identifier      = 0
+		self.__error                = False
+		self.__print_lock           = threading.Lock()
+		self.__default_method       = "GET"
+		self.__allowed_methods      = []
+		self.__collection           = []
+		self.__identifier           = 0
+		self.__exclude_from_dump    = ["raw", "proxy", "code", "length", "response", "response_headers"]
+		self.__exclude_from_results = ["raw", "proxy", "response", "response_headers", "curl"]
 
 	def __parse_url(self, url, ignore_qsf = False, case_sensitive = False):
 		url      = urllib.parse.urlsplit(url)
@@ -316,7 +319,7 @@ class Stresser:
 				tmp[key] = unique(tmp[key])
 		return tmp
 
-	def __parse_ip(self, obj):
+	def __set_ip(self, obj):
 		try:
 			obj["ip_no_port"       ] = socket.gethostbyname(obj["domain_no_port"])
 			obj["ip"               ] = ("{0}:{1}").format(obj["ip_no_port"], obj["port"])
@@ -333,10 +336,11 @@ class Stresser:
 
 	# ------------------------------------
 
-	def __add_content_lengths(self, content_lengths):
-		if not isinstance(content_lengths, list):
-			content_lengths = [content_lengths]
-		self.__content_lengths = unique(self.__content_lengths + content_lengths)
+	def __remove_content_length(self, content_length):
+		self.__content_lengths.pop(self.__content_lengths.index(content_length))
+
+	def __add_content_length(self, content_length):
+		self.__content_lengths = unique(self.__content_lengths + [content_length])
 
 	def get_results(self):
 		return self.__collection
@@ -376,22 +380,24 @@ class Stresser:
 
 	def run(self, dump = False):
 		self.__validate_inaccessible_url()
-		if not self.__error:
-			self.__fetch_inaccessible_ip()
-			if not self.__error:
-				self.__set_allowed_http_methods()
-				self.__prepare_collection()
-				if not self.__collection:
-					print("No test records were created")
-				else:
-					print_cyan(("Number of created test records: {0}").format(len(self.__collection)))
-					if dump:
-						self.__remove_duplicates()
-						print_time("Dumping the test records...")
-						self.__collection = pop(self.__collection, ["raw", "proxy", "code", "length", "response", "response_headers", "curl"])
-					else:
-						self.__run_tests()
-						self.__validate_results()
+		if self.__error:
+			return
+		self.__fetch_inaccessible_ip()
+		if self.__error:
+			return
+		# self.__set_allowed_http_methods() # NOTE: Not needed at the moment.
+		self.__prepare_collection()
+		if not self.__collection:
+			print("No test records were created")
+			return
+		print_cyan(("Number of created test records: {0}").format(len(self.__collection)))
+		if dump:
+			self.__remove_duplicates()
+			print_time("Dumping the test records in the output file...")
+			self.__collection = pop(self.__collection, self.__exclude_from_dump)
+			return
+		self.__run_tests()
+		self.__validate_results()
 
 	def __validate_inaccessible_url(self):
 		print_cyan(("Normalized inaccessible URL: {0}").format(self.__url["urls"]["base"]))
@@ -401,12 +407,12 @@ class Stresser:
 			self.__print_error("Cannot validate the inaccessible URL, script will exit shortly...")
 		elif "base" in self.__content_lengths:
 			print_green(("Ignoring the inaccessible URL response content length: {0}").format(record["length"]))
-			self.__content_lengths.pop(self.__content_lengths.index("base"))
-			self.__add_content_lengths(record["length"])
+			self.__remove_content_length("base")
+			self.__add_content_length(record["length"])
 
 	def __fetch_inaccessible_ip(self):
 		print_time("Fetching the IP of inaccessible URL...")
-		self.__url = self.__parse_ip(copy.deepcopy(self.__url))
+		self.__set_ip(self.__url)
 		if not self.__url["ip_no_port"]:
 			self.__print_error("Cannot fetch the IP of inaccessible URL, script will exit shortly...")
 
@@ -434,7 +440,7 @@ class Stresser:
 									self.__allowed_methods.append(method)
 							break
 			if not self.__allowed_methods:
-				print_cyan(("Cannot fetch allowed HTTP methods, using default HTTP {0} method...").format(self.__default_method))
+				print_cyan(("Cannot fetch allowed HTTP methods, using default built-in HTTP {0} method...").format(self.__default_method))
 				self.__allowed_methods = [self.__default_method]
 			else:
 				print_green(("Allowed HTTP methods: [{0}]").format((", ").join(self.__allowed_methods)))
@@ -478,7 +484,7 @@ class Stresser:
 			user_agent = self.__get_user_agent()
 		if not proxy:
 			proxy = self.__proxy
-		if not curl and curl is not False:
+		if not isinstance(curl, bool):
 			curl = self.__curl
 		record = {
 			"raw"             : self.__identifier,
@@ -646,7 +652,7 @@ class Stresser:
 						record["code"] = ERROR
 						self.__print_debug(error, ("{0}: {1}").format(record["id"], record["command"]))
 				if ignore:
-					if record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, record["response"], self.__regex_flags)):
+					if record["length"] in self.__content_lengths or (self.__ignore_regex and re.search(self.__ignore_regex, record["response"], self.__regex_flags)):
 						record["code"] = IGNORED
 				if save and record["code"] >= 200 and record["code"] < 400: # NOTE: Additional validation to prevent congestion from writing large and usless data to files.
 					file = os.path.join(self.__directory, ("{0}.txt").format(record["id"]))
@@ -721,7 +727,7 @@ class Stresser:
 				if response_headers:
 					record["response_headers"] = dict(response.headers)
 				if ignore:
-					if record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, record["response"], self.__regex_flags)):
+					if record["length"] in self.__content_lengths or (self.__ignore_regex and re.search(self.__ignore_regex, record["response"], self.__regex_flags)):
 						record["code"] = IGNORED
 				if save and record["code"] >= 200 and record["code"] < 400: # NOTE: Additional validation to prevent congestion from writing large and usless data to files.
 					file = os.path.join(self.__directory, ("{0}.txt").format(record["id"]))
@@ -755,9 +761,9 @@ class Stresser:
 	def __validate_results(self):
 		print_time("Validating results...")
 		self.__mark_duplicates()
-		output = Output(self.__collection)
-		self.__collection = output.results_table() if self.__show_table else output.results_json()
-		output.stats_table()
+		output = Output(self.__collection, self.__exclude_from_results, self.__status_codes, self.__show_table)
+		self.__collection = output.show_results()
+		output.show_stats_table()
 
 	def __mark_duplicates(self):
 		exists = set()
@@ -781,63 +787,11 @@ class Stresser:
 
 class Output:
 
-	def __init__(self, collection):
-		self.__collection = pop(sorted([record for record in collection if record["code"] >= 100 and record["code"] < 600], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response", "response_headers", "curl"]) # filtered
-		self.__stats      = self.__count(collection) # unfiltered
-
-	def __color(self, value, color):
-		return ("{0}{1}{2}").format(color, value, colorama.Style.RESET_ALL)
-
-	def __results_row(self, record, color):
-		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
-
-	def results_table(self): # NOTE: To see more or less results, comment in or out 'continue' line.
-		tmp = []; table = []
-		for record in self.__collection:
-			if record["code"] < 100 or record["code"] >= 600:
-				continue
-			elif record["code"] >= 500:
-				continue
-				table.append(self.__results_row(record, colorama.Fore.CYAN))
-			elif record["code"] >= 400:
-				continue
-				table.append(self.__results_row(record, colorama.Fore.RED))
-			elif record["code"] >= 300:
-				# continue
-				table.append(self.__results_row(record, colorama.Fore.YELLOW))
-			elif record["code"] >= 200:
-				# continue
-				table.append(self.__results_row(record, colorama.Fore.GREEN))
-			elif record["code"] >= 100:
-				continue
-				table.append(self.__results_row(record, colorama.Fore.WHITE))
-			tmp.append(record)
-		if table:
-			print(tabulate.tabulate(table, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
-		return tmp
-
-	def results_json(self): # NOTE: To see more or less results, comment in or out 'continue' line.
-		tmp = []
-		for record in self.__collection:
-			if record["code"] < 100 or record["code"] >= 600:
-				continue
-			elif record["code"] >= 500:
-				continue
-				print_cyan(jdump(record))
-			elif record["code"] >= 400:
-				continue
-				print_red(jdump(record))
-			elif record["code"] >= 300:
-				# continue
-				print_yellow(jdump(record))
-			elif record["code"] >= 200:
-				# continue
-				print_green(jdump(record))
-			elif record["code"] >= 100:
-				continue
-				print_white(jdump(record))
-			tmp.append(record)
-		return tmp
+	def __init__(self, collection, exclude_from_results, status_codes, show_table):
+		self.__collection   = pop(sorted([record for record in collection if record["code"] >= 100 and record["code"] < 600], key = lambda record: (record["code"], -record["length"], record["raw"])), exclude_from_results) # filtered
+		self.__stats        = self.__count(collection) # unfiltered
+		self.__status_codes = status_codes
+		self.__show_table   = show_table
 
 	def __count(self, collection):
 		tmp = {}
@@ -847,18 +801,79 @@ class Output:
 			tmp[record["code"]] += 1
 		return dict(sorted(tmp.items()))
 
+	def __check_status_codes(self, array):
+		return any(test in array for test in self.__status_codes)
+
+	# ------------------------------------
+
+	def __color(self, value, color):
+		return ("{0}{1}{2}").format(color, value, colorama.Style.RESET_ALL)
+
+	def __results_row(self, record, color):
+		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
+
+	def __show_results_table(self):
+		tmp = []; table = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				if self.__check_status_codes(["5xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.CYAN))
+			elif record["code"] >= 400:
+				if self.__check_status_codes(["4xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.RED))
+			elif record["code"] >= 300:
+				if self.__check_status_codes(["3xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.YELLOW))
+			elif record["code"] >= 200:
+				if self.__check_status_codes(["2xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.GREEN))
+			elif record["code"] >= 100:
+				if self.__check_status_codes(["1xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.WHITE))
+			tmp.append(record)
+		if table:
+			print(tabulate.tabulate(table, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
+		return tmp
+
+	# ------------------------------------
+
+	def __show_results_json(self):
+		tmp = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				if self.__check_status_codes(["5xx", "all"]):
+					print_cyan(jdump(record))
+			elif record["code"] >= 400:
+				if self.__check_status_codes(["4xx", "all"]):
+					print_red(jdump(record))
+			elif record["code"] >= 300:
+				if self.__check_status_codes(["3xx", "all"]):
+					print_yellow(jdump(record))
+			elif record["code"] >= 200:
+				if self.__check_status_codes(["2xx", "all"]):
+					print_green(jdump(record))
+			elif record["code"] >= 100:
+				if self.__check_status_codes(["1xx", "all"]):
+					print_white(jdump(record))
+			tmp.append(record)
+		return tmp
+
+	# ------------------------------------
+
 	def __stats_row(self, code, count, color):
 		return [self.__color(entry, color) for entry in [code, count]]
 
-	def stats_table(self):
+	def show_stats_table(self):
 		table = []; table_special = []
 		for code, count in self.__stats.items():
 			if code == ERROR:
 				table_special.append(self.__stats_row("Errors", count, colorama.Fore.WHITE))
 			elif code == IGNORED:
 				table_special.append(self.__stats_row("Ignored", count, colorama.Fore.WHITE))
-			elif code == DUPLICATE:
-				table_special.append(self.__stats_row("Duplicates", count, colorama.Fore.WHITE))
 			elif code < 100 or code >= 600:
 				continue
 			elif code >= 500:
@@ -874,12 +889,17 @@ class Output:
 		if table or table_special:
 			print(tabulate.tabulate(table + table_special, ["Status Code", "Count"], tablefmt = "outline", colalign = ("left", "right")))
 
+	# ------------------------------------
+
+	def show_results(self):
+		return self.__show_results_table() if self.__show_table else self.__show_results_json()
+
 # ----------------------------------------
 
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Stresser v12.1 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v12.2 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -892,7 +912,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("IGNORE QUERY STRING AND FRAGMENT")
 		print("    Ignore URL query string and fragment")
 		print("    -iqsf, --ignore-query-string-and-fragment")
-		print("IGNORE REQUESTS")
+		print("IGNORE PYTHON REQUESTS")
 		print("    Use PycURL instead of the default Python Requests where applicable")
 		print("    PycURL might throw OSError if large number of threads is used due to opening too many session cookie files at once")
 		print("    -ir, --ignore-requests")
@@ -934,6 +954,11 @@ class MyArgParser(argparse.ArgumentParser):
 		print("PROXY")
 		print("    Web proxy to use")
 		print("    -x, --proxy = http://127.0.0.1:8080 | etc.")
+		print("HTTP RESPONSE STATUS CODES")
+		print("    Include only specific HTTP response status codes in the results")
+		print("    Use comma-separated values")
+		print("    Default: 2xx | 3xx")
+		print("    -sc, --status-codes = 1xx | 2xx | 3xx | 4xx | 5xx | all")
 		print("SHOW TABLE")
 		print("    Display the results in a table instead of JSON")
 		print("    Intended for a wide screen use")
@@ -954,7 +979,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 	def error(self, message):
 		if len(sys.argv) > 1:
-			print("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-iqsf, -ir, -f, -H, -b, -i, -l, -rt, -a, -x, -st, -o, -dmp, -dbg)")
+			print("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-iqsf, -ir, -f, -H, -b, -i, -l, -rt, -a, -x, -sc, -st, -o, -dmp, -dbg)")
 			print("Use -h or --help for more info")
 		else:
 			self.print_help()
@@ -978,6 +1003,7 @@ class Validate:
 		self.__parser.add_argument("-th"  , "--threads"                         , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-x"   , "--proxy"                           , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-sc"  , "--status-codes"                    , required = False, type   = str.lower   , default = ""   )
 		self.__parser.add_argument("-st"  , "--show-table"                      , required = False, action = "store_true", default = False)
 		self.__parser.add_argument("-o"   , "--out"                             , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-dir" , "--directory"                       , required = True , type   = str         , default = ""   )
@@ -996,6 +1022,7 @@ class Validate:
 		self.__args.threads         = self.__parse_threads(self.__args.threads)                 # required
 		self.__args.user_agent      = self.__parse_user_agent(self.__args.user_agent)           if self.__args.user_agent      else [default_user_agent]
 		self.__args.proxy           = self.__parse_url(self.__args.proxy, "proxy")              if self.__args.proxy           else ""
+		self.__args.status_codes    = self.__parse_status_codes(self.__args.status_codes)       if self.__args.status_codes    else ["2xx", "3xx"]
 		self.__args.directory       = self.__parse_directory(self.__args.directory)             # required
 		self.__args                 = vars(self.__args)
 		return self.__proceed
@@ -1122,6 +1149,22 @@ class Validate:
 		else:
 			return [value]
 
+	def __parse_status_codes(self, value):
+		tmp = []
+		for entry in value.lower().split(","):
+			entry = entry.strip()
+			if not entry:
+				continue
+			elif entry not in ["1xx", "2xx", "3xx", "4xx", "5xx", "all"]:
+				self.__error("Supported HTTP response status codes are '1xx', '2xx', '3xx', '4xx', '5xx', or 'all'")
+				break
+			elif entry == "all":
+				tmp = [entry]
+				break
+			else:
+				tmp.append(entry)
+		return unique(tmp)
+
 	def __parse_directory(self, value):
 		if not os.path.isdir(value):
 			self.__error("Output directory does not exists or is not a directory")
@@ -1134,7 +1177,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v12.1                             #")
+		print("#                             Stresser v12.2                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
@@ -1158,8 +1201,9 @@ def main():
 			validate.get_arg("threads"),
 			validate.get_arg("user_agent"),
 			validate.get_arg("proxy"),
-			validate.get_arg("directory"),
+			validate.get_arg("status_codes"),
 			validate.get_arg("show_table"),
+			validate.get_arg("directory"),
 			validate.get_arg("debug")
 		)
 		stresser.run(dump)

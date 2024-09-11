@@ -68,7 +68,6 @@ Made for educational purposes. I hope it will help!
 
 * add the silent option, to not show the CLI output,
 * add the no color option, to not show colors in the CLI output,
-* add the option to specify which HTTP status codes to show,
 * use brute forcing to validate allowed HTTP methods if HTTP OPTIONS method is not allowed,
 * add tests for HTTP cookies, `User-Agent` HTTP request header, CRLF, and Log4j.
 
@@ -144,7 +143,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-12.1-py3-none-any.whl
+python3 -m pip install dist/forbidden-12.2-py3-none-any.whl
 ```
 
 ## Single URL
@@ -428,8 +427,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
         ],
         "cookies": [],
         "body": null,
-        "user_agent": "Forbidden/12.1",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/12.1' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/12.2",
+        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/12.2' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     },
@@ -442,8 +441,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
         ],
         "cookies": [],
         "body": null,
-        "user_agent": "Forbidden/12.1",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/12.1' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/12.2",
+        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/12.2' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     }
@@ -453,7 +452,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v12.1 ( github.com/ivan-sincek/forbidden )
+Forbidden v12.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -528,11 +527,16 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/12.1
+    Default: Forbidden/12.2
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
     -x, --proxy = http://127.0.0.1:8080 | etc.
+HTTP RESPONSE STATUS CODES
+    Include only specific HTTP response status codes in the results
+    Use comma-separated values
+    Default: 2xx | 3xx
+    -sc, --status-codes = 1xx | 2xx | 3xx | 4xx | 5xx | all
 SHOW TABLE
     Display the results in a table instead of JSON
     Intended for a wide screen use
@@ -549,7 +553,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v12.1 ( github.com/ivan-sincek/forbidden )
+Stresser v12.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -562,7 +566,7 @@ URL
 IGNORE QUERY STRING AND FRAGMENT
     Ignore URL query string and fragment
     -iqsf, --ignore-query-string-and-fragment
-IGNORE REQUESTS
+IGNORE PYTHON REQUESTS
     Use PycURL instead of the default Python Requests where applicable
     PycURL might throw OSError if large number of threads is used due to opening too many session cookie files at once
     -ir, --ignore-requests
@@ -599,11 +603,16 @@ THREADS
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/12.1
+    Default: Stresser/12.2
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
     -x, --proxy = http://127.0.0.1:8080 | etc.
+HTTP RESPONSE STATUS CODES
+    Include only specific HTTP response status codes in the results
+    Use comma-separated values
+    Default: 2xx | 3xx
+    -sc, --status-codes = 1xx | 2xx | 3xx | 4xx | 5xx | all
 SHOW TABLE
     Display the results in a table instead of JSON
     Intended for a wide screen use
@@ -632,3 +641,7 @@ DEBUG
 <p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example_table.png" alt="Basic Example"></p>
 
 <p align="center">Figure 2 - Basic Example (Table Output)</p>
+
+<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/test_records_dumping.png" alt="Test Records Dumping"></p>
+
+<p align="center">Figure 3 - Test Records Dumping</p>

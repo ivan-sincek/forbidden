@@ -21,7 +21,7 @@ stopwatch = Stopwatch()
 
 # ----------------------------------------
 
-default_quotes = "'" # NOTE: Default quotes in the JSON 'command' attribute.
+default_quotes = "'" # NOTE: Default quotes for the JSON 'command' attribute in the results.
 
 def escape_quotes(value):
 	return str(value).replace(default_quotes, ("\\{0}").format(default_quotes))
@@ -78,7 +78,7 @@ def get_base_https_url(scheme, dnp, port, full_path):
 def get_base_http_url(scheme, dnp, port, full_path):
 	return ("http://{0}:{1}{2}").format(dnp, port if scheme == "http" else 80, full_path)
 
-def get_all_domains(scheme, dnps, port): # NOTE: Extends domain names and IPs.
+def get_all_domains(scheme, dnps, port): # NOTE: Can extends both, domain names and IPs.
 	if not isinstance(dnps, list):
 		dnps = [dnps]
 	tmp = []
@@ -95,7 +95,7 @@ def get_encoded_domains(dnp, port):
 	tmp = [dnp, dnp.lower(), dnp.upper(), mix(dnp), urllib.parse.quote(unicode_encode(dnp))]
 	for entry in tmp[0:-1]:
 		tmp.append(hexadecimal_encode(entry))
-		# NOTE: hexadecimal_encode(urllib.parse.quote(unicode_encode(dnp))) does not work
+		# NOTE: hexadecimal_encode(urllib.parse.quote(unicode_encode(dnp))) does not work.
 	for i in range(len(tmp)):
 		tmp[i] = ("{0}:{1}").format(tmp[i], port)
 	return unique(tmp)
@@ -156,7 +156,7 @@ def get_encoded_paths(path):
 		tmp.extend([last, last.lower(), last.upper(), mix(last), capitalize(last), urllib.parse.quote(unicode_encode(last))])
 		for entry in tmp[0:-1]:
 			tmp.append(hexadecimal_encode(entry))
-			# NOTE: hexadecimal_encode(urllib.parse.quote(unicode_encode(last))) does not work
+			# NOTE: hexadecimal_encode(urllib.parse.quote(unicode_encode(last))) does not work.
 		prepend = path_const + paths[0] + path_const if len(paths) > 1 else path_const
 		append = path_const if path.endswith(path_const) else ""
 		for i in range(len(tmp)):
@@ -261,7 +261,7 @@ def print_time(text):
 
 default_encoding = "ISO-8859-1" # NOTE: ISO-8859-1 works better than UTF-8 when accessing files.
 
-default_encoding_array = ["UTF-8", default_encoding] # NOTE: For HTTP requests / responses, try UTF-8 first.
+default_encoding_array = ["UTF-8", default_encoding] # NOTE: For HTTP requests/responses, try UTF-8 first.
 
 def decode(value):
 	tmp = ""
@@ -334,7 +334,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Forbidden/12.1"
+default_user_agent = "Forbidden/12.2"
 
 def get_all_user_agents():
 	tmp = []
@@ -358,26 +358,27 @@ IGNORED = -1
 
 class Forbidden:
 
-	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, paths, evil, headers, cookies, ignore, content_lengths, request_timeout, threads, sleep, user_agents, proxy, show_table, debug):
+	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, paths, evil, headers, cookies, ignore_regex, content_lengths, request_timeout, threads, sleep, user_agents, proxy, status_codes, show_table, debug):
 		# --------------------------------
-		# NOTE: User-controlled input.
+		# NOTE: User-supplied input.
 		self.__url              = self.__parse_url(url, ignore_qsf)
 		self.__tests            = tests
 		self.__force            = force
 		self.__values           = values
 		self.__accessible       = append_paths(self.__url["scheme_domain"], paths)
-		self.__accessible_scope = ["headers", "all"]
+		self.__accessible_scope = ["headers", "all"] # NOTE: When to validate accesible paths.
 		self.__evil             = self.__parse_url(evil, ignore_qsf)
-		self.__evil_scope       = ["headers", "auths", "redirects", "parsers", "all"]
+		self.__evil_scope       = ["headers", "auths", "redirects", "parsers", "all"] # NOTE: When to validate evil URL.
 		self.__headers          = headers
 		self.__cookies          = cookies
-		self.__ignore           = ignore
+		self.__ignore_regex     = ignore_regex
 		self.__content_lengths  = content_lengths
 		self.__threads          = threads
 		self.__sleep            = sleep
 		self.__user_agents      = user_agents
 		self.__user_agents_len  = len(self.__user_agents)
 		self.__proxy            = proxy
+		self.__status_codes     = status_codes
 		self.__show_table       = show_table
 		self.__debug            = debug
 		# --------------------------------
@@ -397,6 +398,8 @@ class Forbidden:
 		self.__allowed_methods_scope = ["methods", "method-overrides", "all"]
 		self.__collection            = []
 		self.__identifier            = 0
+		self.__exclude_from_dump     = ["raw", "proxy", "code", "length", "response", "response_headers"]
+		self.__exclude_from_results  = ["raw", "proxy", "response", "response_headers", "curl"]
 
 	def __parse_url(self, url, ignore_qsf = False, case_sensitive = False):
 		url      = urllib.parse.urlsplit(url)
@@ -454,7 +457,7 @@ class Forbidden:
 				tmp[key] = unique(tmp[key])
 		return tmp
 
-	def __parse_ip(self, obj):
+	def __set_ip(self, obj):
 		try:
 			obj["ip_no_port"       ] = socket.gethostbyname(obj["domain_no_port"])
 			obj["ip"               ] = ("{0}:{1}").format(obj["ip_no_port"], obj["port"])
@@ -471,10 +474,11 @@ class Forbidden:
 
 	# ------------------------------------
 
-	def __add_content_lengths(self, content_lengths):
-		if not isinstance(content_lengths, list):
-			content_lengths = [content_lengths]
-		self.__content_lengths = unique(self.__content_lengths + content_lengths)
+	def __remove_content_length(self, content_length):
+		self.__content_lengths.pop(self.__content_lengths.index(content_length))
+
+	def __add_content_length(self, content_length):
+		self.__content_lengths = unique(self.__content_lengths + [content_length])
 
 	def get_results(self):
 		return self.__collection
@@ -514,23 +518,25 @@ class Forbidden:
 
 	def run(self, dump = False):
 		self.__validate_inaccessible_and_evil_urls()
-		if not self.__error:
-			self.__fetch_inaccessible_and_evil_ips()
-			if not self.__error:
-				self.__validate_accessible_urls()
-				self.__set_allowed_http_methods()
-				self.__prepare_collection()
-				if not self.__collection:
-					print("No test records were created")
-				else:
-					self.__remove_duplicates()
-					print_cyan(("Number of created test records: {0}").format(len(self.__collection)))
-					if dump:
-						print_time("Dumping the test records...")
-						self.__collection = pop(self.__collection, ["raw", "proxy", "code", "length", "response", "response_headers", "curl"])
-					else:
-						self.__run_tests()
-						self.__validate_results()
+		if self.__error:
+			return
+		self.__fetch_inaccessible_and_evil_ips()
+		if self.__error:
+			return		
+		self.__validate_accessible_urls()
+		self.__set_allowed_http_methods()
+		self.__prepare_collection()
+		if not self.__collection:
+			print("No test records were created")
+			return
+		self.__remove_duplicates()
+		print_cyan(("Number of created test records: {0}").format(len(self.__collection)))
+		if dump:
+			print_time("Dumping the test records in the output file...")
+			self.__collection = pop(self.__collection, self.__exclude_from_dump)
+			return
+		self.__run_tests()
+		self.__validate_results()
 
 	def __validate_inaccessible_and_evil_urls(self):
 		print_cyan(("Normalized inaccessible URL: {0}").format(self.__url["urls"]["base"]))
@@ -540,47 +546,46 @@ class Forbidden:
 			self.__print_error("Cannot validate the inaccessible URL, script will exit shortly...")
 		elif "base" in self.__content_lengths:
 			print_green(("Ignoring the inaccessible URL response content length: {0}").format(record["length"]))
-			self.__content_lengths.pop(self.__content_lengths.index("base"))
-			self.__add_content_lengths(record["length"])
+			self.__remove_content_length("base")
+			self.__add_content_length(record["length"])
 		# --------------------------------
 		if not self.__error and self.__check_tests(self.__evil_scope):
 			print_cyan(("Normalized evil URL: {0}").format(self.__evil["urls"]["base"]))
 			print_time(("Validating the evil URL using HTTP {0} method...").format(self.__default_method))
 			record = self.__fetch(url = self.__evil["urls"]["base"], method = self.__default_method)
 			if record["code"] == IGNORED:
-				self.__print_error("Evil URL is ignored, please adjust your options, script will exit shortly...")
+				self.__print_error("Evil URL is being ignored, please adjust your options, script will exit shortly...")
 			elif record["code"] <= 0:
 				self.__print_error("Cannot validate the evil URL, script will exit shortly...")
 
 	def __fetch_inaccessible_and_evil_ips(self):
 		print_time("Fetching the IP of inaccessible URL...")
-		self.__url = self.__parse_ip(copy.deepcopy(self.__url))
+		self.__set_ip(self.__url)
 		if not self.__url["ip_no_port"]:
 			self.__print_error("Cannot fetch the IP of inaccessible URL, script will exit shortly...")
 		# --------------------------------
 		if not self.__error and self.__check_tests(self.__evil_scope):
 			print_time("Fetching the IP of evil URL...")
-			self.__evil = self.__parse_ip(copy.deepcopy(self.__evil))
+			self.__set_ip(self.__evil)
 			if not self.__evil["ip_no_port"]:
 				self.__print_error("Cannot fetch the IP of evil URL, script will exit shortly...")
 
 	# NOTE: Proceed with the first valid accessible URL.
-	# TO DO: if length < 1 then it is users upplied
 	def __validate_accessible_urls(self):
-		if self.__check_tests(self.__accessible_scope): # NOTE: Only tests that use the accessible URL.
+		if self.__check_tests(self.__accessible_scope):
 			print_time(("Validating the accessible URLs using HTTP {0} method...").format(self.__default_method))
 			for url in copy.deepcopy(self.__accessible):
 				self.__accessible = ""
 				record = self.__fetch(url = url, method = self.__default_method)
 				if record["code"] == IGNORED:
-					print_yellow(("Valid accessible URL ignored: {0}").format(record["url"]))
+					print_yellow(("Valid accessible URL is being ignored: {0}").format(record["url"]))
 				elif record["code"] >= 200 and record["code"] < 300:
 					print_green(("Valid accessible URL found: {0}").format(record["url"]))
 					self.__accessible = record["url"]
 					if "path" in self.__content_lengths:
 						print_green(("Ignoring the accessible URL response content length: {0}").format(record["length"]))
-						self.__content_lengths.pop(self.__content_lengths.index("path"))
-						self.__add_content_lengths(record["length"])
+						self.__remove_content_length("path")
+						self.__add_content_length(record["length"])
 					break
 			if not self.__accessible:
 				print_cyan("No valid accessible URLs were found, moving on...")
@@ -589,7 +594,7 @@ class Forbidden:
 		if self.__force:
 			print_cyan(("Forcing HTTP {0} method for all non-specific test cases...").format(self.__force))
 			self.__allowed_methods = [self.__force]
-		elif self.__check_tests(self.__allowed_methods_scope): # NOTE: Only tests that use multiple HTTP methods.
+		elif self.__check_tests(self.__allowed_methods_scope):
 			print_time("Fetching allowed HTTP methods...")
 			record = self.__fetch(url = self.__url["urls"]["base"], method = "OPTIONS", ignore = False, response_headers = True)
 			if record["code"] > 0:
@@ -611,7 +616,7 @@ class Forbidden:
 			if not self.__allowed_methods:
 				print_cyan("Cannot fetch allowed HTTP methods, using all built-in HTTP methods...")
 				self.__allowed_methods = self.__get_methods()
-				# TO DO: Validate (brute-force) all built-in HTTP methods.
+				# TO DO: Validate all built-in HTTP methods using brute-force.
 			else:
 				print_green(("Allowed HTTP methods: [{0}]").format((", ").join(self.__allowed_methods)))
 
@@ -650,7 +655,7 @@ class Forbidden:
 			user_agent = self.__get_user_agent()
 		if not proxy:
 			proxy = self.__proxy
-		if not curl and curl is not False:
+		if not isinstance(curl, bool):
 			curl = self.__curl
 		record = {
 			"raw"             : self.__identifier,
@@ -819,7 +824,7 @@ class Forbidden:
 						record["code"] = ERROR
 						self.__print_debug(error, ("{0}: {1}").format(record["id"], record["command"]))
 				if ignore:
-					if record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, record["response"], self.__regex_flags)):
+					if record["length"] in self.__content_lengths or (self.__ignore_regex and re.search(self.__ignore_regex, record["response"], self.__regex_flags)):
 						record["code"] = IGNORED
 			if not response_body:
 				record["response"] = ""
@@ -891,7 +896,7 @@ class Forbidden:
 				if response_headers:
 					record["response_headers"] = dict(response.headers)
 				if ignore:
-					if record["length"] in self.__content_lengths or (self.__ignore and re.search(self.__ignore, record["response"], self.__regex_flags)):
+					if record["length"] in self.__content_lengths or (self.__ignore_regex and re.search(self.__ignore_regex, record["response"], self.__regex_flags)):
 						record["code"] = IGNORED
 			if not response_body:
 				record["response"] = ""
@@ -920,9 +925,9 @@ class Forbidden:
 
 	def __validate_results(self):
 		print_time("Validating results...")
-		output = Output(self.__collection)
-		self.__collection = output.results_table() if self.__show_table else output.results_json()
-		output.stats_table()
+		output = Output(self.__collection, self.__exclude_from_results, self.__status_codes, self.__show_table)
+		self.__collection = output.show_results()
+		output.show_stats_table()
 
 	# ------------------------------------
 
@@ -1568,63 +1573,11 @@ class Forbidden:
 
 class Output:
 
-	def __init__(self, collection):
-		self.__collection = pop(sorted([record for record in collection if record["code"] >= 100 and record["code"] < 600], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response", "response_headers", "curl"]) # filtered
-		self.__stats      = self.__count(collection) # unfiltered
-
-	def __color(self, value, color):
-		return ("{0}{1}{2}").format(color, value, colorama.Style.RESET_ALL)
-
-	def __results_row(self, record, color):
-		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
-
-	def results_table(self): # NOTE: To see more or less results, comment in or out 'continue' line.
-		tmp = []; table = []
-		for record in self.__collection:
-			if record["code"] < 100 or record["code"] >= 600:
-				continue
-			elif record["code"] >= 500:
-				continue
-				table.append(self.__results_row(record, colorama.Fore.CYAN))
-			elif record["code"] >= 400:
-				continue
-				table.append(self.__results_row(record, colorama.Fore.RED))
-			elif record["code"] >= 300:
-				# continue
-				table.append(self.__results_row(record, colorama.Fore.YELLOW))
-			elif record["code"] >= 200:
-				# continue
-				table.append(self.__results_row(record, colorama.Fore.GREEN))
-			elif record["code"] >= 100:
-				continue
-				table.append(self.__results_row(record, colorama.Fore.WHITE))
-			tmp.append(record)
-		if table:
-			print(tabulate.tabulate(table, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
-		return tmp
-
-	def results_json(self): # NOTE: To see more or less results, comment in or out 'continue' line.
-		tmp = []
-		for record in self.__collection:
-			if record["code"] < 100 or record["code"] >= 600:
-				continue
-			elif record["code"] >= 500:
-				continue
-				print_cyan(jdump(record))
-			elif record["code"] >= 400:
-				continue
-				print_red(jdump(record))
-			elif record["code"] >= 300:
-				# continue
-				print_yellow(jdump(record))
-			elif record["code"] >= 200:
-				# continue
-				print_green(jdump(record))
-			elif record["code"] >= 100:
-				continue
-				print_white(jdump(record))
-			tmp.append(record)
-		return tmp
+	def __init__(self, collection, exclude_from_results, status_codes, show_table):
+		self.__collection   = pop(sorted([record for record in collection if record["code"] >= 100 and record["code"] < 600], key = lambda record: (record["code"], -record["length"], record["raw"])), exclude_from_results) # filtered
+		self.__stats        = self.__count(collection) # unfiltered
+		self.__status_codes = status_codes
+		self.__show_table   = show_table
 
 	def __count(self, collection):
 		tmp = {}
@@ -1634,10 +1587,73 @@ class Output:
 			tmp[record["code"]] += 1
 		return dict(sorted(tmp.items()))
 
+	def __check_status_codes(self, array):
+		return any(test in array for test in self.__status_codes)
+
+	# ------------------------------------
+
+	def __color(self, value, color):
+		return ("{0}{1}{2}").format(color, value, colorama.Style.RESET_ALL)
+
+	def __results_row(self, record, color):
+		return [self.__color(record[key], color) for key in ["id", "code", "length", "command"]]
+
+	def __show_results_table(self):
+		tmp = []; table = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				if self.__check_status_codes(["5xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.CYAN))
+			elif record["code"] >= 400:
+				if self.__check_status_codes(["4xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.RED))
+			elif record["code"] >= 300:
+				if self.__check_status_codes(["3xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.YELLOW))
+			elif record["code"] >= 200:
+				if self.__check_status_codes(["2xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.GREEN))
+			elif record["code"] >= 100:
+				if self.__check_status_codes(["1xx", "all"]):
+					table.append(self.__results_row(record, colorama.Fore.WHITE))
+			tmp.append(record)
+		if table:
+			print(tabulate.tabulate(table, tablefmt = "plain", colalign = ("right", "right", "right", "left")))
+		return tmp
+
+	# ------------------------------------
+
+	def __show_results_json(self):
+		tmp = []
+		for record in self.__collection:
+			if record["code"] < 100 or record["code"] >= 600:
+				continue
+			elif record["code"] >= 500:
+				if self.__check_status_codes(["5xx", "all"]):
+					print_cyan(jdump(record))
+			elif record["code"] >= 400:
+				if self.__check_status_codes(["4xx", "all"]):
+					print_red(jdump(record))
+			elif record["code"] >= 300:
+				if self.__check_status_codes(["3xx", "all"]):
+					print_yellow(jdump(record))
+			elif record["code"] >= 200:
+				if self.__check_status_codes(["2xx", "all"]):
+					print_green(jdump(record))
+			elif record["code"] >= 100:
+				if self.__check_status_codes(["1xx", "all"]):
+					print_white(jdump(record))
+			tmp.append(record)
+		return tmp
+
+	# ------------------------------------
+
 	def __stats_row(self, code, count, color):
 		return [self.__color(entry, color) for entry in [code, count]]
 
-	def stats_table(self):
+	def show_stats_table(self):
 		table = []; table_special = []
 		for code, count in self.__stats.items():
 			if code == ERROR:
@@ -1659,12 +1675,17 @@ class Output:
 		if table or table_special:
 			print(tabulate.tabulate(table + table_special, ["Status Code", "Count"], tablefmt = "outline", colalign = ("left", "right")))
 
+	# ------------------------------------
+
+	def show_results(self):
+		return self.__show_results_table() if self.__show_table else self.__show_results_json()
+
 # ----------------------------------------
 
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Forbidden v12.1 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v12.2 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1744,6 +1765,11 @@ class MyArgParser(argparse.ArgumentParser):
 		print("PROXY")
 		print("    Web proxy to use")
 		print("    -x, --proxy = http://127.0.0.1:8080 | etc.")
+		print("HTTP RESPONSE STATUS CODES")
+		print("    Include only specific HTTP response status codes in the results")
+		print("    Use comma-separated values")
+		print("    Default: 2xx | 3xx")
+		print("    -sc, --status-codes = 1xx | 2xx | 3xx | 4xx | 5xx | all")
 		print("SHOW TABLE")
 		print("    Display the results in a table instead of JSON")
 		print("    Intended for a wide screen use")
@@ -1760,7 +1786,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 	def error(self, message):
 		if len(sys.argv) > 1:
-			print("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -H, -b, -i, -l, -rt, -th, -s, -a, -x, -st, -o, -dmp, -dbg)")
+			print("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -H, -b, -i, -l, -rt, -th, -s, -a, -x, -sc, -st, -o, -dmp, -dbg)")
 			print("Use -h or --help for more info")
 		else:
 			self.print_help()
@@ -1788,6 +1814,7 @@ class Validate:
 		self.__parser.add_argument("-s"   , "--sleep"                           , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-x"   , "--proxy"                           , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-sc"  , "--status-codes"                    , required = False, type   = str.lower   , default = ""   )
 		self.__parser.add_argument("-st"  , "--show-table"                      , required = False, action = "store_true", default = False)
 		self.__parser.add_argument("-o"   , "--out"                             , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-dmp" , "--dump"                            , required = False, action = "store_true", default = False)
@@ -1809,6 +1836,7 @@ class Validate:
 		self.__args.sleep           = self.__parse_sleep(self.__args.sleep)                     if self.__args.sleep           else 0
 		self.__args.user_agent      = self.__parse_user_agent(self.__args.user_agent)           if self.__args.user_agent      else [default_user_agent]
 		self.__args.proxy           = self.__parse_url(self.__args.proxy, "proxy")              if self.__args.proxy           else ""
+		self.__args.status_codes    = self.__parse_status_codes(self.__args.status_codes)       if self.__args.status_codes    else ["2xx", "3xx"]
 		self.__args                 = vars(self.__args)
 		return self.__proceed
 
@@ -1977,6 +2005,22 @@ class Validate:
 		else:
 			return [value]
 
+	def __parse_status_codes(self, value):
+		tmp = []
+		for entry in value.lower().split(","):
+			entry = entry.strip()
+			if not entry:
+				continue
+			elif entry not in ["1xx", "2xx", "3xx", "4xx", "5xx", "all"]:
+				self.__error("Supported HTTP response status codes are '1xx', '2xx', '3xx', '4xx', '5xx', or 'all'")
+				break
+			elif entry == "all":
+				tmp = [entry]
+				break
+			else:
+				tmp.append(entry)
+		return unique(tmp)
+
 # ----------------------------------------
 
 def main():
@@ -1984,7 +2028,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v12.1                             #")
+		print("#                             Forbidden v12.2                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")
@@ -2012,6 +2056,7 @@ def main():
 			validate.get_arg("sleep"),
 			validate.get_arg("user_agent"),
 			validate.get_arg("proxy"),
+			validate.get_arg("status_codes"),
 			validate.get_arg("show_table"),
 			validate.get_arg("debug")
 		)
