@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import alive_progress, argparse, base64, colorama, concurrent.futures, copy, datetime, io, json, jwt, os, pycurl, random, regex as re, requests, socket, subprocess, sys, tabulate, tempfile, termcolor, threading, tqdm, urllib.parse
+import alive_progress, argparse, base64, colorama, concurrent.futures, copy, datetime, io, json, jwt, os, pycurl, random, regex as re, requests, socket, subprocess, sys, tabulate, tempfile, termcolor, threading, urllib.parse
 
 colorama.init(autoreset = True)
 
@@ -334,7 +334,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Forbidden/12.2"
+default_user_agent = "Forbidden/12.3"
 
 def get_all_user_agents():
 	tmp = []
@@ -1695,7 +1695,7 @@ class Output:
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Forbidden v12.2 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v12.3 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -2038,7 +2038,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v12.2                             #")
+		print("#                             Forbidden v12.3                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")
