@@ -51,23 +51,23 @@ Made for educational purposes. I hope it will help!
 **Remarks:**
 
 * all HTTP request headers, values, URL path bypasses, etc., were validated based on the official documentation or public infosec write-ups,
-* by default, `Forbidden` is locked to `PycURL` and `Stresser` is locked to `Python Requests`,
+* by default, `Forbidden` is "locked" to `PycURL` and `Stresser` is "locked" to `Python Requests`,
 * Python Requests is up to 3x faster than PycURL, but PycURL is a bit more customizable,
 * PycURL might also throw `OSError` if large number of threads is used due to opening too many session cookie files at once,
-* at the moment, only `2xx` and `3xx` HTTP status codes are included in results and shown in CLI output,
+* by default, only `2xx` and `3xx` HTTP status codes are included in results and shown in the output,
 * `length` attribute in results includes only HTTP response body length,
 * testing `double headers` is locked to `Python Requests` because PycURL does not support it,
 * testing `encodings` is locked to `PycURL` because Python Requests does not support it,
 * connection and read timeout is set to `60` seconds,
-* beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
+* beware of `rate limiting` and other similar anti-bot protections, take some time before running the script again on the same domain,
 * some web proxies might normalize URLs (e.g., when testing `encodings`), modify HTTP requests, or drop HTTP requests entirely,
 * some websites might require a valid or very specific `User-Agent` HTTP request header,
 * cross-site tracing (XST) is `no longer` considered to be a vulnerability.
 
 **High priority plans:**
 
-* add the silent option, to not show the CLI output,
-* add the no color option, to not show colors in the CLI output,
+* add the silent option, to not show the console output,
+* add the no color option, to not show colors in the console output,
 * use brute forcing to validate allowed HTTP methods if HTTP OPTIONS method is not allowed,
 * add tests for HTTP cookies, `User-Agent` HTTP request header, CRLF, and Log4j.
 
@@ -495,7 +495,7 @@ EVIL
 HEADER
     Specify any number of extra HTTP request headers
     Extra HTTP request headers will not override test's HTTP request headers
-    Semi-colon in e.g., 'Content-Type;' will expand to an empty HTTP request header
+    Semi-colon in, e.g., 'Content-Type;' will expand to an empty HTTP request header
     -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
 COOKIE
     Specify any number of extra HTTP cookies
@@ -545,7 +545,7 @@ OUT
     Output file
     -o, --out = results.json | etc.
 DUMP
-    Dump all the tests in the output file without running them
+    Dump all the test cases in the output file without running them
     -dmp, --dump
 DEBUG
     Debug output
@@ -576,7 +576,7 @@ FORCE
 HEADER
     Specify any number of extra HTTP request headers
     Extra HTTP request headers will not override test's HTTP request headers
-    Semi-colon in e.g., 'Content-Type;' will expand to an empty HTTP request header
+    Semi-colon in, e.g., 'Content-Type;' will expand to an empty HTTP request header
     -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
 COOKIE
     Specify any number of extra HTTP cookies
@@ -625,7 +625,7 @@ DIRECTORY
     All valid and unique HTTP responses will be saved in this directory
     -dir, --directory = results | etc.
 DUMP
-    Dump all the tests in the output file without running them
+    Dump all the test cases in the output file without running them
     -dmp, --dump
 DEBUG
     Debug output
