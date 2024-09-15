@@ -1034,6 +1034,7 @@ class Validate:
 		self.__args.proxy           = self.__parse_url(self.__args.proxy, "proxy")              if self.__args.proxy           else ""
 		self.__args.status_codes    = self.__parse_status_codes(self.__args.status_codes)       if self.__args.status_codes    else ["2xx", "3xx"]
 		self.__args.directory       = self.__parse_directory(self.__args.directory)             # required
+		self.__parse_dump()
 		self.__args                 = vars(self.__args)
 		return self.__proceed
 
@@ -1180,6 +1181,10 @@ class Validate:
 			self.__error("Output directory does not exist or is not a directory")
 		return value
 
+	def __parse_dump(self):
+		if self.__args.dump and not self.__args.out:
+			self.__error("Output file was not specified")
+
 # ----------------------------------------
 
 def main():
@@ -1218,8 +1223,6 @@ def main():
 		)
 		stresser.run(dump)
 		results = stresser.get_results()
-		if dump and not out:
-			validate.print_error("Output file not found")
 		stopwatch.stop()
 		if results and out:
 			write_file(jdump(results), out)
