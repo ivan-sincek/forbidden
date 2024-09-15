@@ -238,7 +238,7 @@ class Stresser:
 		self.__repeat          = repeat
 		self.__threads         = threads
 		self.__user_agents     = user_agents
-		self.__user_agents_len  = len(self.__user_agents)
+		self.__user_agents_len = len(self.__user_agents)
 		self.__proxy           = proxy
 		self.__status_codes    = status_codes
 		self.__show_table      = show_table
