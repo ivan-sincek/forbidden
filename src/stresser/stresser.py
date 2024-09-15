@@ -981,7 +981,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    All valid and unique HTTP responses will be saved in this directory")
 		print("    -dir, --directory = results | etc.")
 		print("DUMP")
-		print("    Dump all the test cases in the output file without running them")
+		print("    Dump all the test records in the output file without running them")
 		print("    -dmp, --dump")
 		print("DEBUG")
 		print("    Debug output")
@@ -1134,20 +1134,20 @@ class Validate:
 
 	def __parse_repeat(self, value):
 		if not value.isdigit():
-			self.__error("Number of total HTTP requests to send must be numeric")
+			self.__error("Number of total HTTP requests must be numeric")
 		else:
 			value = int(value)
 			if value <= 0:
-				self.__error("Number of total HTTP requests to send must be greater than zero")
+				self.__error("Number of total HTTP requests must be greater than zero")
 		return value
 
 	def __parse_threads(self, value):
 		if not value.isdigit():
-			self.__error("Number of parallel threads to run must be numeric")
+			self.__error("Number of parallel threads must be numeric")
 		else:
 			value = int(value)
 			if value <= 0:
-				self.__error("Number of parallel threads to run must be greater than zero")
+				self.__error("Number of parallel threads must be greater than zero")
 		return value
 
 	def __parse_user_agent(self, value):
@@ -1177,7 +1177,7 @@ class Validate:
 
 	def __parse_directory(self, value):
 		if not os.path.isdir(value):
-			self.__error("Output directory does not exists or is not a directory")
+			self.__error("Output directory does not exist or is not a directory")
 		return value
 
 # ----------------------------------------

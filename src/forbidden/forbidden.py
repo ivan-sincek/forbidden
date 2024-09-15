@@ -1765,7 +1765,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Default: 5")
 		print("    -th, --threads = 20 | etc.")
 		print("SLEEP")
-		print("    Sleep in milliseconds before sending an HTTP request")
+		print("    Sleep time in milliseconds before sending an HTTP request")
 		print("    Intended for a single-thread use")
 		print("    -s, --sleep = 500 | etc.")
 		print("USER AGENT")
@@ -1788,7 +1788,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Output file")
 		print("    -o, --out = results.json | etc.")
 		print("DUMP")
-		print("    Dump all the test cases in the output file without running them")
+		print("    Dump all the test records in the output file without running them")
 		print("    -dmp, --dump")
 		print("DEBUG")
 		print("    Debug output")
@@ -1990,20 +1990,20 @@ class Validate:
 
 	def __parse_threads(self, value):
 		if not value.isdigit():
-			self.__error("Number of parallel threads to run must be numeric")
+			self.__error("Number of parallel threads must be numeric")
 		else:
 			value = int(value)
 			if value <= 0:
-				self.__error("Number of parallel threads to run must be greater than zero")
+				self.__error("Number of parallel threads must be greater than zero")
 		return value
 
 	def __parse_sleep(self, value):
 		if not value.isdigit():
-			self.__error("Sleep must be numeric")
+			self.__error("Sleep time must be numeric")
 		else:
 			value = int(value) / 1000
 			if value <= 0:
-				self.__error("Sleep must be greater than zero")
+				self.__error("Sleep time must be greater than zero")
 		return value
 
 	def __parse_user_agent(self, value):

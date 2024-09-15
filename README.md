@@ -522,7 +522,7 @@ THREADS
     Default: 5
     -th, --threads = 20 | etc.
 SLEEP
-    Sleep in milliseconds before sending an HTTP request
+    Sleep time in milliseconds before sending an HTTP request
     Intended for a single-thread use
     -s, --sleep = 500 | etc.
 USER AGENT
@@ -545,7 +545,7 @@ OUT
     Output file
     -o, --out = results.json | etc.
 DUMP
-    Dump all the test cases in the output file without running them
+    Dump all the test records in the output file without running them
     -dmp, --dump
 DEBUG
     Debug output
@@ -625,7 +625,7 @@ DIRECTORY
     All valid and unique HTTP responses will be saved in this directory
     -dir, --directory = results | etc.
 DUMP
-    Dump all the test cases in the output file without running them
+    Dump all the test records in the output file without running them
     -dmp, --dump
 DEBUG
     Debug output
