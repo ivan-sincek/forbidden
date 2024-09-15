@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import alive_progress, argparse, base64, colorama, concurrent.futures, copy, datetime, io, json, jwt, os, pycurl, random, regex as re, requests, socket, subprocess, sys, tabulate, tempfile, termcolor, threading, urllib.parse
+import alive_progress, argparse, base64, colorama, concurrent.futures, copy, datetime, io, json, jwt, os, pycurl, random, regex as re, requests, socket, sys, tabulate, tempfile, termcolor, threading, time, urllib.parse
 
 colorama.init(autoreset = True)
 
@@ -334,7 +334,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Forbidden/12.3"
+default_user_agent = "Forbidden/12.4"
 
 def get_all_user_agents():
 	tmp = []
@@ -345,7 +345,7 @@ def get_all_user_agents():
 				line = line.strip()
 				if line:
 					tmp.append(line)
-	return tmp if tmp else [default_agent]
+	return tmp if tmp else [default_user_agent]
 
 def get_random_user_agent():
 	tmp = get_all_user_agents()
@@ -708,7 +708,7 @@ class Forbidden:
 		return tmp
 
 	def __get_user_agent(self):
-		return self.__user_agents[random.randint(0, self.__user_agents_len - 1)] if self.__user_agents_len > 1 else self.__user_agents[0]
+		return self.__user_agents[random.randint(0, self.__user_agents_len - 1)]
 
 	def __build_command(self, record):
 		tmp = ["curl", ("--connect-timeout {0}").format(self.__connect_timeout), ("-m {0}").format(self.__read_timeout), "-iskL", ("--max-redirs {0}").format(self.__max_redirects), "--path-as-is"]
@@ -1695,7 +1695,7 @@ class Output:
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Forbidden v12.3 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v12.4 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -2038,7 +2038,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v12.3                             #")
+		print("#                             Forbidden v12.4                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")

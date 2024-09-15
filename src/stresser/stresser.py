@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import alive_progress, argparse, colorama, concurrent.futures, copy, datetime, io, json, os, pycurl, random, regex as re, requests, socket, subprocess, sys, tabulate, tempfile, termcolor, threading, urllib.parse
+import alive_progress, argparse, colorama, concurrent.futures, copy, datetime, io, json, os, pycurl, random, regex as re, requests, socket, sys, tabulate, tempfile, termcolor, threading, time, urllib.parse
 
 colorama.init(autoreset = True)
 
@@ -201,7 +201,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Stresser/12.3"
+default_user_agent = "Stresser/12.4"
 
 def get_all_user_agents():
 	tmp = []
@@ -212,7 +212,7 @@ def get_all_user_agents():
 				line = line.strip()
 				if line:
 					tmp.append(line)
-	return tmp if tmp else [default_agent]
+	return tmp if tmp else [default_user_agent]
 
 def get_random_user_agent():
 	tmp = get_all_user_agents()
@@ -238,7 +238,7 @@ class Stresser:
 		self.__repeat          = repeat
 		self.__threads         = threads
 		self.__user_agents     = user_agents
-		self.__user_agents_len = len(self.__user_agents)
+		self.__user_agents_len  = len(self.__user_agents)
 		self.__proxy           = proxy
 		self.__status_codes    = status_codes
 		self.__show_table      = show_table
@@ -537,7 +537,7 @@ class Stresser:
 		return tmp
 
 	def __get_user_agent(self):
-		return self.__user_agents[random.randint(0, self.__user_agents_len - 1)] if self.__user_agents_len > 1 else self.__user_agents[0]
+		return self.__user_agents[random.randint(0, self.__user_agents_len - 1)]
 
 	def __build_command(self, record):
 		tmp = ["curl", ("--connect-timeout {0}").format(self.__connect_timeout), ("-m {0}").format(self.__read_timeout), "-iskL", ("--max-redirs {0}").format(self.__max_redirects), "--path-as-is"]
@@ -909,7 +909,7 @@ class Output:
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Stresser v12.3 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v12.4 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -932,7 +932,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("HEADER")
 		print("    Specify any number of extra HTTP request headers")
 		print("    Extra HTTP request headers will not override test's HTTP request headers")
-		print("    Semi-colon, in e.g., 'Content-Type;' will expand to an empty HTTP request header")
+		print("    Semi-colon in, e.g., 'Content-Type;' will expand to an empty HTTP request header")
 		print("    -H, --header = \"Authorization: Bearer ey...\" | Content-Type; | etc.")
 		print("COOKIE")
 		print("    Specify any number of extra HTTP cookies")
@@ -1187,7 +1187,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v12.3                             #")
+		print("#                             Stresser v12.4                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
