@@ -948,7 +948,7 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Use comma-separated values")
 		print("    -l, --content-lengths = 12 | base | etc.")
 		print("REQUEST TIMEOUT")
-		print("    Request timeout")
+		print("    Request timeout in seconds")
 		print("    Default: 60")
 		print("    -rt, --request-timeout = 30 | etc.")
 		print("REPEAT")
