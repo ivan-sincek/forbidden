@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import alive_progress, argparse, colorama, concurrent.futures, copy, datetime, io, json, os, pycurl, random, regex as re, requests, socket, sys, tabulate, tempfile, termcolor, threading, time, urllib.parse
+import alive_progress, argparse, colorama, concurrent.futures, datetime, io, json, os, pycurl, random, regex as re, requests, socket, sys, tabulate, tempfile, termcolor, threading, urllib.parse
 
 colorama.init(autoreset = True)
 
@@ -201,7 +201,7 @@ def write_file(data, out):
 
 # ----------------------------------------
 
-default_user_agent = "Stresser/12.4"
+default_user_agent = "Stresser/12.5"
 
 def get_all_user_agents():
 	tmp = []
@@ -909,7 +909,7 @@ class Output:
 class MyArgParser(argparse.ArgumentParser):
 
 	def print_help(self):
-		print("Stresser v12.4 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v12.5 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -1192,7 +1192,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v12.4                             #")
+		print("#                             Stresser v12.5                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
