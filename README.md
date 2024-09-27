@@ -354,7 +354,7 @@ X-Wap-Profile
 
 Inject at the beginning, end, and both, beginning and end of the URL path.
 
-You can use one payload set to test all positions simultaneously (sniper) or test using every possible combination of payload set (cluster bomb - default).
+Test using every possible combination of the payload set (default - cluster bomb) or place the same payload into all of the defined payload positions simultaneously (battering ram).
 
 ```fundamental
 /
