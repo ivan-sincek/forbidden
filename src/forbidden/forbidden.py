@@ -1856,9 +1856,9 @@ class Validate:
 
 	def __error(self, msg):
 		self.__proceed = False
-		self.print_error(msg)
+		self.__print_error(msg)
 
-	def print_error(self, msg):
+	def __print_error(self, msg):
 		print(("ERROR: {0}").format(msg))
 
 	def __parse_url(self, value, key):
