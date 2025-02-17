@@ -183,9 +183,9 @@ forbidden -u https://example.com/admin -t redirects,parsers -f GET -l initial -e
 
 If you're interested in more details, see:
 
-* [/src/forbidden/utils/forbidden.py](https://github.com/ivan-sincek/forbidden/blob/development/src/forbidden/utils/forbidden.py#L609)
-* [/src/forbidden/utils/test.py](https://github.com/ivan-sincek/forbidden/blob/development/src/forbidden/utils/test.py)
-* [/src/forbidden/utils/value.py](https://github.com/ivan-sincek/forbidden/blob/development/src/forbidden/utils/value.py)
+* [/src/forbidden/utils/forbidden.py](https://github.com/ivan-sincek/forbidden/blob/main/src/forbidden/utils/forbidden.py#L601)
+* [/src/forbidden/utils/test.py](https://github.com/ivan-sincek/forbidden/blob/main/src/forbidden/utils/test.py)
+* [/src/forbidden/utils/value.py](https://github.com/ivan-sincek/forbidden/blob/main/src/forbidden/utils/value.py)
 
 ---
 
