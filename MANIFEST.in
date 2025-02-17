@@ -1,4 +1,1 @@
 include src/forbidden/*.py
-include src/forbidden/*.txt
-include src/stresser/*.py
-include src/stresser/*.txt

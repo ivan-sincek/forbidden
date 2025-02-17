@@ -1,92 +1,38 @@
 # Forbidden
 
-Bypass 4xx HTTP response status codes and more. Based on PycURL and Python Requests.
+Bypass 4xx HTTP response status codes and more.
 
-Script uses multithreading and is based on brute forcing, and as such, might have false positive results. Script has colored output.
+The tool is based on `Python Requests`, `PycURL`, and `HTTP Client`.
 
-Results will be sorted by HTTP response status code ascending, HTTP response content length descending, and ID ascending.
+The stress testing tool was inspired by this infosec [write-up](https://amineaboud.medium.com/story-of-a-weird-vulnerability-i-found-on-facebook-fc0875eb5125).
 
-To manually filter out false positive results, for each unique HTTP response content length, run the provided cURL command and check if the HTTP response results in bypass; if not, simply ignore all the results with the same HTTP response content length.
-
-| Test Description | Test |
-| --- | --- |
-| HTTP and HTTPS requests on both, domain name and IP. | base |
-| HTTP methods + w/ `Content-Length: 0` HTTP request header. | methods |
-| Cross-site tracing (XST) w/ HTTP TRACE and TRACK methods. | methods |
-| \[Text\] file upload w/ HTTP PUT method on all URL directories. | methods |
-| HTTP method overrides w/ HTTP request headers and URL query string params. | method-overrides |
-| URL scheme overrides. | scheme-overrides |
-| Port overrides. | port-overrides |
-| Information disclosure w/ `Accept` HTTP request header. | headers |
-| HTTP request headers. | headers |
-| URL override + w/ accessible URL. | headers |
-| HTTP host override w/ double `Host` HTTP request headers. | headers |
-| HTTP request headers w/ user-supplied values. | values |
-| URL path bypasses. | paths |
-| URL transformations and encodings. | encodings |
-| Basic and bearer auth + w/ null session and malicious JWTs. | auths |
-| Open redirects, OOB, and SSRF. | redirects |
-| Broken URL parsers, OOB, and SSRF. | parsers |
-
----
-
-Check the stress testing script [here](https://github.com/ivan-sincek/forbidden/blob/main/src/stresser/stresser.py). Inspired by this [write-up](https://amineaboud.medium.com/story-of-a-weird-vulnerability-i-found-on-facebook-fc0875eb5125).
-
-Extend the scripts to your liking.
-
-Good sources of HTTP headers:
-
-* [developer.mozilla.org/en-US/docs/Web/HTTP/Headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers)
-* [developers.cloudflare.com/fundamentals/reference/http-request-headers](https://developers.cloudflare.com/fundamentals/reference/http-request-headers)
-* [udger.com/resources/http-request-headers](https://udger.com/resources/http-request-headers)
-* [webconcepts.info/concepts/http-header](https://webconcepts.info/concepts/http-header)
-* [webtechsurvey.com/common-response-headers](https://webtechsurvey.com/common-response-headers)
-
-Tested on Kali Linux v2023.4 (64-bit).
+Tested on Kali Linux v2024.2 (64-bit).
 
 Made for educational purposes. I hope it will help!
 
----
+**Future plans:**
 
-**Remarks:**
-
-* all HTTP request headers, values, URL path bypasses, etc., were validated based on the official documentation or public infosec write-ups,
-* by default, `Forbidden` is "locked" to `PycURL` and `Stresser` is "locked" to `Python Requests`,
-* Python Requests is up to 3x faster than PycURL, but PycURL is a bit more customizable,
-* PycURL might also throw `OSError` if large number of threads is used due to opening too many session cookie files at once,
-* by default, only `2xx` and `3xx` HTTP status codes are included in results and shown in the output,
-* `length` attribute in results includes only HTTP response body length,
-* testing `double headers` is locked to `Python Requests` because PycURL does not support it,
-* testing `encodings` is locked to `PycURL` because Python Requests does not support it,
-* connection and read timeout is set to `60` seconds,
-* beware of `rate limiting` and other similar anti-bot protections, take some time before running the script again on the same domain,
-* some web proxies might normalize URLs (e.g., when testing `encodings`), modify HTTP requests, or drop HTTP requests entirely,
-* some websites might require a valid or very specific `User-Agent` HTTP request header,
-* cross-site tracing (XST) is `no longer` considered to be a vulnerability.
-
-**High priority plans:**
-
-* add the silent option, to not show the console output,
-* add the no color option, to not show colors in the console output,
-* use brute forcing to validate allowed HTTP methods if HTTP OPTIONS method is not allowed,
-* add tests for HTTP cookies, `User-Agent` HTTP request header, CRLF, and Log4j.
-
-**Low priority plans:**
-
-* add option to test custom HTTP header-value pairs for a list of domains/subdomains.
+* Add the `silent` option to suppress console output.
+* Add the `no color` option to disable colored console output.
+* Add tests for `hop-by-hop` HTTP request headers.
+* Add tests for the `User-Agent` HTTP request header.
+* Add tests for HTTP cookies.
+* Add tests for HTTP smuggling.
+* Add tests for CRLF.
+* Add tests for Log4j.
+* Add tests for AWS metadata SSRF.
 
 ## Table of Contents
 
 * [How to Install](#how-to-install)
-	* [Install PycURL](#install-pycurl)
-	* [Standard Install](#standard-install)
-	* [Build and Install From the Source](#build-and-install-from-the-source)
-* [Single URL](#single-url)
-* [Multiple URLs](#multiple-urls)
-* [HTTP Methods](#http-methods)
-* [HTTP Request Headers](#http-request-headers)
-* [URL Paths](#url-paths)
-* [Results Format](#results-format)
+    * [Install PycURL](#install-pycurl)
+    * [Standard Install](#standard-install)
+    * [Build and Install From the Source](#build-and-install-from-the-source)
+* [How to Use](#how-to-use)
+* [Tests](#tests)
+    * [HTTP Methods](#http-methods)
+    * [HTTP Request Headers](#http-request-headers)
+* [Results](#results)
 * [Usage](#usage)
 * [Images](#images)
 
@@ -94,7 +40,7 @@ Made for educational purposes. I hope it will help!
 
 ### Install PycURL
 
-On Kali Linux, there should be no issues; otherwise, run:
+On Kali Linux, this should work without issues; otherwise, run:
 
 ```bash
 apt-get -y install libcurl4-gnutls-dev librtmp-dev
@@ -104,7 +50,7 @@ pip3 install --upgrade pycurl
 
 ---
 
-On Windows OS, download and install PycURL from [www.lfd.uci.edu/~gohlke](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycurl). Tested only on Windows 10.
+PycURL on Windows OS is not supported.
 
 ---
 
@@ -128,6 +74,12 @@ export PYCURL_SSL_LIBRARY=openssl
 pip3 install --no-cache-dir --compile --ignore-installed --config-setting="--with-openssl=" --config-setting="--openssl-dir=/opt/homebrew/opt/openssl@3" pycurl
 ```
 
+Alternatively, install using [Homebrew](https://formulae.brew.sh/formula/forbidden) (not maintained by me):
+
+```fundamental
+brew install forbidden
+```
+
 ### Standard Install
 
 ```bash
@@ -143,78 +95,117 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-12.6-py3-none-any.whl
+python3 -m pip install dist/forbidden-13.0-py3-none-any.whl
 ```
 
-## Single URL
+## How to Use
 
 Bypass `403 Forbidden` HTTP response status code:
 
 ```fundamental
-forbidden -u https://target.com -t base,methods,method-overrides,scheme-overrides,port-overrides,headers,paths-ram,encodings -f GET -l base,path -o forbidden_403_results.json
+forbidden -u https://example.com/admin -t protocols,methods,uploads,overrides,headers,paths-ram,encodings -f GET -l initial,path -o forbidden_403_results.json
 ```
 
 Bypass `403 Forbidden` HTTP response status code with stress testing:
 
-```bash
+```fundamental
 mkdir stresser_403_results
 
-stresser -u https://target.com -dir stresser_403_results -r 1000 -th 200 -f GET -l base -o stresser_403_results.json
+stresser -u https://example.com/admin -r 1000 -th 200 -f GET -l initial -dir stresser_403_results -o stresser_403_results.json
 ```
 
 Bypass `401 Unauthorized` HTTP response status code:
 
 ```fundamental
-forbidden -u https://target.com -t auths -f GET -l base -o forbidden_401_results.json
+forbidden -u https://example.com/admin -t auths -f GET -l initial -o forbidden_401_results.json
 ```
 
-Test open redirects, OOB, and SSRF:
+Test for open redirects and broken URL parsers, i.e., test for out-of-band (OOB) interactions:
 
 ```fundamental
-forbidden -u https://target.com -t redirects -f GET -l base -e xyz.interact.sh -o forbidden_redirect_results.json
+forbidden -u https://example.com/admin -t redirects,parsers -f GET -l initial -e xyz.interact.sh -o forbidden_oob_results.json
 ```
 
-Test broken URL parsers, OOB, and SSRF:
+## Tests
 
-```fundamental
-forbidden -u https://target.com -t parsers -f GET -l base -e xyz.interact.sh -o forbidden_parser_results.json
-```
+**`protocols`**
 
-## Multiple URLs
+* Test HTTP and HTTPS protocols using an IP address and domain name.
+* Test an HTTP/1.0 protocol downgrade without the `Host` HTTP request header, using an IP address and domain name.
 
-Bypass `403 Forbidden` HTTP response status code:
+**`methods`**
 
-```bash
-count=0; for subdomain in $(cat subdomains_403.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t base,methods,method-overrides,scheme-overrides,port-overrides,headers,paths,encodings -f GET -l base,path -o "forbidden_403_results_${count}.json"; done
-```
+* Test the allowed HTTP methods, also using the `Content-Length: 0` HTTP request header.
+* Test Cross-Site Tracing (XST) using the HTTP TRACE and TRACK methods.
 
-Bypass `403 Forbidden` HTTP response status code with stress testing:
+**`uploads`**
 
-```bash
-mkdir stresser_403_results
+* Test a text file upload recursively for each directory in the URL path using the HTTP PUT method.
 
-count=0; for subdomain in $(cat subdomains_403.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; stresser -u "${subdomain}" -dir stresser_403_results -r 1000 -th 200 -f GET -l base -o "stresser_403_results_${count}.json"; done
-```
+**`overrides`**
 
-Bypass `401 Unauthorized` HTTP response status code:
+* Test HTTP method overrides using URL query string parameters, HTTP request headers, and HTTP request bodies.
+* Test URL scheme overrides using HTTP request headers, from HTTPS to HTTP and from HTTP to HTTPS.
+* Test port overrides using HTTP request headers.
+* Test HTTP host overrides using HTTP request headers, also using two `Host` HTTP request headers.
+* Test URL path overrides using HTTP request headers with relative URL paths, using the following URLs: an accessible URL, root URL, and full URL.
 
-```bash
-count=0; for subdomain in $(cat subdomains_401.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t auths -f GET -l base -o "forbidden_401_results_${count}.json"; done
-```
+**`headers`**
 
-Test open redirects, OOB, and SSRF:
+* Test HTTP request headers with IP addresses, comma-separated IP addresses, domain names, root URLs, full URLs, and more.
 
-```bash
-count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t redirects -f GET -l base -e xyz.interact.sh -o "forbidden_redirect_results_${count}.json"; done
-```
+**`values`**
 
-Test broken URL parsers, OOB, and SSRF:
+* Test HTTP request headers with user-supplied IP addresses, domain names, root URLs, and full URLs.
 
-```bash
-count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t parsers -f GET -l base -e xyz.interact.sh -o "forbidden_parser_results_${count}.json"; done
-```
+**`paths`**
 
-# HTTP Methods
+* Test URL path bypasses.
+
+**`encodings`**
+
+* Test URL host and path transformations and encodings.
+
+**`auths`**
+
+* Test basic authentication/authorization using HTTP request headers with null values and predefined Base64 encoded credentials.
+* Test bearer authentication/authorization using HTTP request headers with null values, malformed JWTs, and predefined JWTs.
+
+**`redirects`**
+
+* Test open redirects using HTTP request headers with redirect IP addresses, domain names, root URLs, and full URLs.
+
+**`parsers`**
+
+* Test broken URL parsers using HTTP request headers with broken IP addresses, domain names, root URLs, and full URLs.
+
+---
+
+If you're interested in more details, see:
+
+* [/src/forbidden/utils/forbidden.py](https://github.com/ivan-sincek/forbidden/blob/development/src/forbidden/utils/forbidden.py#L609)
+* [/src/forbidden/utils/test.py](https://github.com/ivan-sincek/forbidden/blob/development/src/forbidden/utils/test.py)
+* [/src/forbidden/utils/value.py](https://github.com/ivan-sincek/forbidden/blob/development/src/forbidden/utils/value.py)
+
+---
+
+**Remarks:**
+
+* All the tests are based on public infosec and bug bounty write-ups.
+* Some of the tests overlap; however, a `unique filter` is applied before anything is sent.
+* All the HTTP request headers, URL query string parameters, etc., were validated based on official documentation.
+* By default, both `Forbidden` and `Stresser` use the `Python Requests` engine.
+* Testing the HTTP/1.0 protocol downgrade without the `Host` HTTP request header is locked to the `HTTP Client` engine. Additionally, the provided cURL command will not work properly because cURL does not allow removing the `Host` HTTP request header.
+* Testing the HTTP host override using two `Host` HTTP request headers is locked to the `Python Requests` engine. Additionally, the provided cURL command will not work properly because cURL does not allow using two `Host` HTTP request headers.
+* Testing URL host and path transformations and encodings is locked to the `PycURL` engine.
+* Some web proxies might `normalize` URLs (e.g., when testing `encodings`), modify HTTP requests, or drop HTTP requests entirely.
+* Some websites might require a valid or very specific `User-Agent` HTTP request header.
+* Cross-Site Tracing (XST) is no longer considered a vulnerability.
+* Beware of `rate limiting` and other similar anti-bot protections; take some time before running the tool again on the same domain.
+
+### HTTP Methods
+
+_This is just a quick overview of what is used, but not how it is used._
 
 ```fundamental
 ACL
@@ -225,6 +216,7 @@ CHECKIN
 CHECKOUT
 CONNECT
 COPY
+DELETE
 GET
 HEAD
 INDEX
@@ -263,50 +255,28 @@ UPDATEREDIRECTREF
 VERSION-CONTROL
 ```
 
-# HTTP Request Headers
+### HTTP Request Headers
 
-Method overrides:
-
-```fundamental
-X-HTTP-Method
-X-HTTP-Method-Override
-X-Method-Override
-```
-
-Scheme overrides:
-
-```fundamental
-X-Forwarded-Proto
-X-Forwarded-Protocol
-X-Forwarded-Scheme
-X-Scheme
-X-URL-Scheme
-```
-
-Port overrides:
-
-```fundamental
-X-Forwarded-Port
-```
-
-Other:
+_This is just a quick overview of what is used, but not how it is used._
 
 ```fundamental
 19-Profile
+Accept
 Base-URL
 CF-Connecting-IP
 Client-IP
 Cluster-Client-IP
 Destination
-Forwarded
 Forwarded-For
 Forwarded-For-IP
 From
+Front-End-HTTPS
 Host
 Incap-Client-IP
 Origin
 Profile
 Proxy
+Proxy-Client-IP
 Redirect
 Referer
 Remote-Addr
@@ -315,20 +285,32 @@ True-Client-IP
 URI
 URL
 WAP-Profile
+WL-Proxy-Client-IP
 X-Client-IP
 X-Cluster-Client-IP
-X-Custom-IP-Authorization
+X-Forward
+X-Forward-For
 X-Forwarded
 X-Forwarded-By
 X-Forwarded-For
+X-Forwarded-For-IP
 X-Forwarded-For-Original
 X-Forwarded-Host
 X-Forwarded-Path
+X-Forwarded-Port
+X-Forwarded-Proto
+X-Forwarded-Protocol
+X-Forwarded-SSL
+X-Forwarded-Scheme
 X-Forwarded-Server
 X-HTTP-DestinationURL
 X-HTTP-Host-Override
+X-HTTP-Method
+X-HTTP-Method-Override
 X-Host
 X-Host-Override
+X-Method
+X-Method-Override
 X-Original-Forwarded-For
 X-Original-Remote-Addr
 X-Original-URL
@@ -342,183 +324,123 @@ X-Real-IP
 X-Referer
 X-Remote-Addr
 X-Remote-IP
-X-Requested-With
 X-Rewrite-URL
+X-Scheme
 X-Server-IP
 X-True-Client-IP
 X-True-IP
+X-URL-Scheme
 X-Wap-Profile
 ```
 
-# URL Paths
+## Results
 
-Inject at the beginning, end, and both, beginning and end of the URL path.
+**Remarks:**
 
-Test using every possible combination of the payload set (default - cluster bomb) or place the same payload into all of the defined payload positions simultaneously (battering ram).
-
-```fundamental
-/
-//
-%09
-%20
-%23
-%2e
-%a0
-*
-.
-..
-;
-.;
-..;
-/;/
-;/../../
-;foo=bar;
-```
-
-Inject at the end of the URL path.
-
-```fundamental
-#
-##
-##random
-*
-**
-**random
-.
-..
-..random
-?
-??
-??random
-~
-~~
-~~random
-```
-
-Inject at the end of the URL path only if it does not end with forward slash.
-
-```fundamental
-.asp
-.aspx
-.esp
-.html
-.jhtml
-.json
-.jsp
-.jspa
-.jspx
-.php
-.sht
-.shtml
-.xhtml
-.xml
-```
-
-## Results Format
+* Results will be sorted by HTTP response status code `ascending`, HTTP response body length `descending`, and test ID `ascending`.
+* By default, only `2xx` and `3xx` HTTP response status codes are included in the results and shown in the console output.
+* The `length` attribute in the results refers to the HTTP response body length.
+* To manually filter out `false positive` results, for each unique HTTP response content length, run the provided cURL command and check if the HTTP response results in bypass; if not, simply ignore all the results with the same content length.
 
 ```json
 [
-    {
-        "id": "860-HEADERS-3",
-        "url": "https://example.com:443/admin",
-        "method": "GET",
-        "headers": [
-            "Host: 127.0.0.1"
-        ],
-        "cookies": [],
-        "body": null,
-        "user_agent": "Forbidden/12.6",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/12.6' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
-        "code": 200,
-        "length": 255408
-    },
-    {
-        "id": "861-HEADERS-3",
-        "url": "https://example.com:443/admin",
-        "method": "GET",
-        "headers": [
-            "Host: 127.0.0.1:443"
-        ],
-        "cookies": [],
-        "body": null,
-        "user_agent": "Forbidden/12.6",
-        "command": "curl --connect-timeout 60 -m 60 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/12.6' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
-        "code": 200,
-        "length": 255408
-    }
+   {
+      "id":"595-HOST-OVERRIDES-1",
+      "url":"https://example.com:443/admin",
+      "method":"GET",
+      "headers":[
+         "Host: 127.0.0.1"
+      ],
+      "cookies":[],
+      "body":"",
+      "user_agent":"Forbidden/13.0",
+      "command":"curl --path-as-is -iskL -A 'Forbidden/13.0' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+      "status":200,
+      "length":14301
+   },
+   {
+      "id":"596-HOST-OVERRIDES-1",
+      "url":"https://example.com:443/admin",
+      "method":"GET",
+      "headers":[
+         "Host: 127.0.0.1:443"
+      ],
+      "cookies":[],
+      "body":"",
+      "user_agent":"Forbidden/13.0",
+      "command":"curl --path-as-is -iskL -A 'Forbidden/13.0' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+      "status":200,
+      "length":14301
+   }
 ]
 ```
 
 ## Usage
 
 ```fundamental
-Forbidden v12.6 ( github.com/ivan-sincek/forbidden )
+Forbidden v13.0 ( github.com/ivan-sincek/forbidden )
 
-Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
-Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
+Usage:   forbidden -u url                       -t tests [-f force] [-o out         ]
+Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-o results.json]
 
 DESCRIPTION
     Bypass 4xx HTTP response status codes and more
 URL
     Inaccessible URL
     -u, --url = https://example.com/admin | etc.
-IGNORE QUERY STRING AND FRAGMENT
+IGNORE PARAMETERS
     Ignore URL query string and fragment
-    -iqsf, --ignore-query-string-and-fragment
-IGNORE CURL
-    Use Python Requests instead of the default PycURL where applicable
-    PycURL might throw OSError if large number of threads is used due to opening too many session cookie files at once
-    -ic, --ignore-curl
+    -ip, --ignore-parameters
+IGNORE REQUESTS
+    Where applicable, use PycURL instead of the default Python Requests engine
+    -ir, --ignore-requests
 TESTS
     Tests to run
+    Specify '[ip-|host-|url-]values' to test HTTP request headers using only user-supplied values passed with the '-v' option
+    Specify 'paths-ram' to use the battering ram attack or 'paths' to use the default cluster bomb attack
     Use comma-separated values
-    Specify 'paths-ram' to use battering ram attack or 'paths' to use the default cluster bomb attack
-    Specify 'values' to test HTTP request headers with user-supplied values passed using the '-v' option
-    -t, --tests = base | methods | (method|scheme|port)-overrides | headers | values | paths[-ram] | encodings | auths | redirects | parsers | all
-FORCE
-    Force an HTTP method for all non-specific test cases
-    -f, --force = GET | POST | CUSTOM | etc.
+    -t, --tests = protocols | methods | uploads | [method-|scheme-|port-|host-|path-]overrides | headers | [ip-|host-|url-]values | paths[-ram] | encodings | [basic-|bearer-]auths | redirects | parsers | all
 VALUES
-    File with additional HTTP request header values or a single value, e.g., internal IP, etc.
-    Tests: values
-    -v, --values = values.txt | 10.10.15.20 | etc.
+    File containing HTTP request header values or a single value, e.g., internal IP, etc.
+    Tests: all-values
+    -v, --values = values.txt | 10.10.15.20 | example.local | https://example.local | etc.
+FORCE
+    Force an HTTP method for all non-specific tests
+    -f, --force = GET | POST | CUSTOM | etc.
 PATH
-    Accessible URL path to test URL overrides
-    Tests: headers
-    Default: /robots.txt | /index.html | /sitemap.xml | /README.txt
+    Accessible URL path to test URL path overrides
+    Tests: path-overrides
+    Default: /robots.txt, /index.html, /sitemap.xml, /README.txt
     -p, --path = /home | etc.
 EVIL
-    Evil URL to test URL overrides
-    Tests: headers | redirects
+    Evil URL or collaborator service
+    Tests: host-overrides, headers, bearer-auths, redirects, parsers
     Default: https://github.com
     -e, --evil = https://xyz.interact.sh | https://xyz.burpcollaborator.net | etc.
 HEADER
-    Specify any number of extra HTTP request headers
-    Extra HTTP request headers will not override test's HTTP request headers
+    Any number of extra HTTP request headers
+    Extra HTTP request headers will not override test-specific HTTP request headers
     Semi-colon in, e.g., 'Content-Type;' will expand to an empty HTTP request header
     -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
 COOKIE
-    Specify any number of extra HTTP cookies
-    Extra HTTP cookies will not override test's HTTTP cookies
+    Any number of extra HTTP cookies
+    Extra HTTP cookies will not override test-specific HTTP cookies
     -b, --cookie = PHPSESSIONID=3301 | etc.
 IGNORE
-    Filter out 200 OK false positive results with RegEx
-    Spacing will be stripped
-    -i, --ignore = Inaccessible | "Access Denied" | etc.
+    RegEx to filter out false positive 200 OK results
+    -i, --ignore = Inaccessible | "Access Denied" | "Error: .+" | etc.
 CONTENT LENGTHS
-    Filter out 200 OK false positive results by HTTP response content lengths
-    Specify 'base' to ignore content length of the base HTTP response
-    Specify 'path' to ignore content length of the accessible URL response
+    HTTP response content lengths to filter out false positive 200 OK results
+    Specify 'initial' to ignore the content length of the initial HTTP response
+    Specify 'path' to ignore the content length of the accessible URL's response
     Use comma-separated values
-    -l, --content-lengths = 12 | base | path | etc.
+    -l, --content-lengths = 12 | initial | path | etc.
 REQUEST TIMEOUT
-    Request timeout
+    Request timeout in seconds
     Default: 60
-    -rt, --request-timeout = 30 | etc.
+    -rt, --request-timeout = 30 | 90 | etc.
 THREADS
     Number of parallel threads to run
-    More threads mean more requests sent in parallel, but may also result in more false positives
-    Highly dependent on internet connection speed and server capacity
     Default: 5
     -th, --threads = 20 | etc.
 SLEEP
@@ -527,95 +449,93 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/12.6
-    -a, --user-agent = curl/3.30.1 | random[-all] | etc.
+    Default: Forbidden/13.0
+    -a, --user-agent = random[-all] | curl/3.30.1 | etc.
 PROXY
     Web proxy to use
     -x, --proxy = http://127.0.0.1:8080 | etc.
 HTTP RESPONSE STATUS CODES
     Include only specific HTTP response status codes in the results
+    Default: 2xx, 3xx
     Use comma-separated values
-    Default: 2xx | 3xx
     -sc, --status-codes = 1xx | 2xx | 3xx | 4xx | 5xx | all
 SHOW TABLE
-    Display the results in a table instead of JSON
-    Intended for a wide screen use
+    Display the results in a table format instead of JSON format
+    Intended for use on a wide screen
     -st, --show-table
 OUT
     Output file
     -o, --out = results.json | etc.
 DUMP
-    Dump all the test records in the output file without running them
+    Dump all the test records into the output file without running any
     -dmp, --dump
 DEBUG
-    Debug output
+    Enable debug output
     -dbg, --debug
 ```
 
 ```fundamental
-Stresser v12.6 ( github.com/ivan-sincek/forbidden )
+Stresser v13.0 ( github.com/ivan-sincek/forbidden )
 
-Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
-Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
+Usage:   stresser -u url                       -r repeat -th threads -dir directory [-f force] [-o out         ]
+Example: stresser -u https://example.com/admin -r 1000   -th 200     -dir results   [-f GET  ] [-o results.json]
 
 DESCRIPTION
     Bypass 4xx HTTP response status codes with stress testing
 URL
     Inaccessible URL
     -u, --url = https://example.com/admin | etc.
-IGNORE QUERY STRING AND FRAGMENT
+IGNORE PARAMETERS
     Ignore URL query string and fragment
-    -iqsf, --ignore-query-string-and-fragment
-IGNORE PYTHON REQUESTS
-    Use PycURL instead of the default Python Requests where applicable
-    PycURL might throw OSError if large number of threads is used due to opening too many session cookie files at once
+    -ip, --ignore-parameters
+IGNORE REQUESTS
+    Where applicable, use PycURL instead of the default Python Requests engine
     -ir, --ignore-requests
 FORCE
-    Force an HTTP method for all non-specific test cases
+    Force an HTTP method for all non-specific tests
     -f, --force = GET | POST | CUSTOM | etc.
 HEADER
-    Specify any number of extra HTTP request headers
-    Extra HTTP request headers will not override test's HTTP request headers
+    Any number of extra HTTP request headers
+    Extra HTTP request headers will not override test-specific HTTP request headers
     Semi-colon in, e.g., 'Content-Type;' will expand to an empty HTTP request header
     -H, --header = "Authorization: Bearer ey..." | Content-Type; | etc.
 COOKIE
-    Specify any number of extra HTTP cookies
-    Extra HTTP cookies will not override test's HTTTP cookies
+    Any number of extra HTTP cookies
+    Extra HTTP cookies will not override test-specific HTTP cookies
     -b, --cookie = PHPSESSIONID=3301 | etc.
 IGNORE
-    Filter out 200 OK false positive results with RegEx
-    Spacing will be stripped
-    -i, --ignore = Inaccessible | "Access Denied" | etc.
+    RegEx to filter out false positive 200 OK results
+    -i, --ignore = Inaccessible | "Access Denied" | "Error: .+" | etc.
 CONTENT LENGTHS
-    Filter out 200 OK false positive results by HTTP response content lengths
-    Specify 'base' to ignore content length of the base HTTP response
+    HTTP response content lengths to filter out false positive 200 OK results
+    Specify 'initial' to ignore the content length of the initial HTTP response
     Use comma-separated values
-    -l, --content-lengths = 12 | base | etc.
+    -l, --content-lengths = 12 | initial | etc.
 REQUEST TIMEOUT
-    Request timeout
+    Request timeout in seconds
     Default: 60
-    -rt, --request-timeout = 30 | etc.
+    -rt, --request-timeout = 30 | 90 | etc.
 REPEAT
-    Number of total HTTP requests to send for each test case
+    Number of HTTP requests per test
     -r, --repeat = 1000 | etc.
 THREADS
     Number of parallel threads to run
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/12.6
-    -a, --user-agent = curl/3.30.1 | random[-all] | etc.
+    Default: Stresser/13.0
+    -a, --user-agent = random[-all] | curl/3.30.1 | etc.
 PROXY
     Web proxy to use
     -x, --proxy = http://127.0.0.1:8080 | etc.
 HTTP RESPONSE STATUS CODES
     Include only specific HTTP response status codes in the results
+    Default: 2xx, 3xx
     Use comma-separated values
-    Default: 2xx | 3xx
     -sc, --status-codes = 1xx | 2xx | 3xx | 4xx | 5xx | all
 SHOW TABLE
-    Display the results in a table instead of JSON
-    Intended for a wide screen use
+    Display the results in a table format instead of JSON format
+    Intended for use on a wide screen
     -st, --show-table
 OUT
     Output file
@@ -625,23 +545,23 @@ DIRECTORY
     All valid and unique HTTP responses will be saved in this directory
     -dir, --directory = results | etc.
 DUMP
-    Dump all the test records in the output file without running them
+    Dump all the test records into the output file without running any
     -dmp, --dump
 DEBUG
-    Debug output
+    Enable debug output
     -dbg, --debug
 ```
 
 ## Images
 
-<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example.png" alt="Basic Example"></p>
+<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/real_example.png" alt="Real Example"></p>
 
-<p align="center">Figure 1 - Basic Example</p>
+<p align="center">Figure 1 - Real Example</p>
 
-<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example_table.png" alt="Basic Example"></p>
+<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/simple_example.png" alt="Simple Example"></p>
 
-<p align="center">Figure 2 - Basic Example (Table Output)</p>
+<p align="center">Figure 2 - Simple Example</p>
 
-<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/test_records_dumping.png" alt="Test Records Dumping"></p>
+<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/simple_example_table_output.png" alt="Simple Example (Table Output)"></p>
 
-<p align="center">Figure 3 - Test Records Dumping</p>
+<p align="center">Figure 3 - Simple Example (Table Output)</p>
