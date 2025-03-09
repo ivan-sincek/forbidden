@@ -74,7 +74,7 @@ def find(response_headers: str | dict[str, str], key: str):
 				value = __value
 				break
 	else:
-		matches = grep.find(("\n").join(response_headers.splitlines()), f"(?<=^{key}\:).+")
+		matches = grep.find(("\n").join(response_headers.splitlines()), rf"(?<=^{key}\:).+")
 		if matches:
 			value = str(matches[0])
 	return value
