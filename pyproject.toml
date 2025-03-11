@@ -18,10 +18,11 @@ dependencies = [
 	"alive-progress>=3.1.5",
 	"bot_safe_agents>=1.0",
 	"colorama>=0.4.6",
+ 	"cryptography>=44.0.1",
 	"pycurl>=7.45.2",
 	"pyjwt>=2.7.0",
 	"regex>=2023.8.8",
-	"requests>=2.31.0",
+	"requests>=2.32.2",
 	"tabulate>=0.9.0",
 	"termcolor>=2.4.0"
 ]
