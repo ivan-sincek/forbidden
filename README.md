@@ -95,7 +95,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-13.1-py3-none-any.whl
+python3 -m pip install dist/forbidden-13.2-py3-none-any.whl
 ```
 
 ## How to Use
@@ -353,8 +353,8 @@ X-Wap-Profile
       ],
       "cookies":[],
       "body":"",
-      "user_agent":"Forbidden/13.1",
-      "command":"curl --path-as-is -iskL -A 'Forbidden/13.1' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+      "user_agent":"Forbidden/13.2",
+      "command":"curl --path-as-is -iskL -A 'Forbidden/13.2' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
       "status":200,
       "length":14301
    },
@@ -367,8 +367,8 @@ X-Wap-Profile
       ],
       "cookies":[],
       "body":"",
-      "user_agent":"Forbidden/13.1",
-      "command":"curl --path-as-is -iskL -A 'Forbidden/13.1' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+      "user_agent":"Forbidden/13.2",
+      "command":"curl --path-as-is -iskL -A 'Forbidden/13.2' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
       "status":200,
       "length":14301
    }
@@ -378,7 +378,7 @@ X-Wap-Profile
 ## Usage
 
 ```fundamental
-Forbidden v13.1 ( github.com/ivan-sincek/forbidden )
+Forbidden v13.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-o results.json]
@@ -449,7 +449,7 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/13.1
+    Default: Forbidden/13.2
     -a, --user-agent = random[-all] | curl/3.30.1 | etc.
 PROXY
     Web proxy to use
@@ -475,7 +475,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v13.1 ( github.com/ivan-sincek/forbidden )
+Stresser v13.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                       -r repeat -th threads -dir directory [-f force] [-o out         ]
 Example: stresser -u https://example.com/admin -r 1000   -th 200     -dir results   [-f GET  ] [-o results.json]
@@ -523,7 +523,7 @@ THREADS
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/13.1
+    Default: Stresser/13.2
     -a, --user-agent = random[-all] | curl/3.30.1 | etc.
 PROXY
     Web proxy to use

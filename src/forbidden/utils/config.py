@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-APP_VERSION = "v13.1"
+APP_VERSION = "v13.2"
 
-USER_AGENT = "Forbidden/13.1"
+USER_AGENT = "Forbidden/13.2"
 
 def banner():
 	"""
@@ -10,7 +10,7 @@ def banner():
 	"""
 	print("#########################################################################")
 	print("#                                                                       #")
-	print("#                            Forbidden v13.1                            #")
+	print("#                            Forbidden v13.2                            #")
 	print("#                                 by Ivan Sincek                        #")
 	print("#                                                                       #")
 	print("# Bypass 4xx HTTP response status codes and more.                       #")
