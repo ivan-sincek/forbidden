@@ -4,8 +4,6 @@ Bypass 4xx HTTP response status codes and more.
 
 The tool is based on `Python Requests`, `PycURL`, and `HTTP Client`.
 
-The stress testing tool was inspired by this infosec [write-up](https://amineaboud.medium.com/story-of-a-weird-vulnerability-i-found-on-facebook-fc0875eb5125).
-
 Tested on Kali Linux v2024.2 (64-bit).
 
 Made for educational purposes. I hope it will help!
@@ -95,7 +93,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-13.2-py3-none-any.whl
+python3 -m pip install dist/forbidden-13.4-py3-none-any.whl
 ```
 
 ## How to Use
@@ -353,8 +351,8 @@ X-Wap-Profile
       ],
       "cookies":[],
       "body":"",
-      "user_agent":"Forbidden/13.2",
-      "command":"curl --path-as-is -iskL -A 'Forbidden/13.2' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+      "user_agent":"Forbidden/13.4",
+      "command":"curl --path-as-is -iskL -A 'Forbidden/13.4' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
       "status":200,
       "length":14301
    },
@@ -367,8 +365,8 @@ X-Wap-Profile
       ],
       "cookies":[],
       "body":"",
-      "user_agent":"Forbidden/13.2",
-      "command":"curl --path-as-is -iskL -A 'Forbidden/13.2' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+      "user_agent":"Forbidden/13.4",
+      "command":"curl --path-as-is -iskL -A 'Forbidden/13.4' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
       "status":200,
       "length":14301
    }
@@ -378,7 +376,7 @@ X-Wap-Profile
 ## Usage
 
 ```fundamental
-Forbidden v13.2 ( github.com/ivan-sincek/forbidden )
+Forbidden v13.4 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-o results.json]
@@ -449,7 +447,7 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/13.2
+    Default: Forbidden/13.4
     -a, --user-agent = random[-all] | curl/3.30.1 | etc.
 PROXY
     Web proxy to use
@@ -475,7 +473,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v13.2 ( github.com/ivan-sincek/forbidden )
+Stresser v13.4 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                       -r repeat -th threads -dir directory [-f force] [-o out         ]
 Example: stresser -u https://example.com/admin -r 1000   -th 200     -dir results   [-f GET  ] [-o results.json]
@@ -523,7 +521,7 @@ THREADS
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/13.2
+    Default: Stresser/13.4
     -a, --user-agent = random[-all] | curl/3.30.1 | etc.
 PROXY
     Web proxy to use
@@ -554,14 +552,14 @@ DEBUG
 
 ## Images
 
-<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/real_example.png" alt="Real Example"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ivan-sincek/forbidden/refs/heads/main/img/real_example.png" alt="Real Example"></p>
 
 <p align="center">Figure 1 - Real Example</p>
 
-<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/simple_example.png" alt="Simple Example"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ivan-sincek/forbidden/refs/heads/main/img/simple_example.png" alt="Simple Example"></p>
 
 <p align="center">Figure 2 - Simple Example</p>
 
-<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/simple_example_table_output.png" alt="Simple Example (Table Output)"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ivan-sincek/forbidden/refs/heads/main/img/simple_example_table_output.png" alt="Simple Example (Table Output)"></p>
 
 <p align="center">Figure 3 - Simple Example (Table Output)</p>
